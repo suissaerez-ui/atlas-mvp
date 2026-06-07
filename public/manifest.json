@@ -1,0 +1,10 @@
+{
+  "name": "Atlas",
+  "short_name": "Atlas",
+  "description": "A playful AI advisor for students.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff8e8",
+  "theme_color": "#fff6d9",
+  "icons": []
+}
