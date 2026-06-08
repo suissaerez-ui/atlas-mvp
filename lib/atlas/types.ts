@@ -43,8 +43,10 @@ export type StudentProfile = {
   name: string;
   grade: number;
   location: string;
+  schoolName?: string;
   interests: string[];
   goals: string[];
+  notes?: string;
   academics: {
     gpa: number;
     trend: "up" | "flat" | "down" | "unknown";

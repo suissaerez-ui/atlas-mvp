@@ -60,6 +60,9 @@ type BuilderForm = {
   name: string;
   grade: string;
   location: string;
+  schoolName: string;
+  currentClasses: string;
+  narrative: string;
   advisorGoal: AdvisorGoal;
   interests: string[];
   gpaRange: GpaRange;
@@ -112,6 +115,9 @@ const initialBuilderForm: BuilderForm = {
   name: "",
   grade: "11",
   location: "New Jersey",
+  schoolName: "",
+  currentClasses: "",
+  narrative: "",
   advisorGoal: "not_sure",
   interests: [],
   gpaRange: "3_5_3_7",
@@ -255,7 +261,6 @@ function HomeScreen() {
   const [resources, setResources] = useState<AtlasResourceCard[]>([]);
   const [isFindingResources, setIsFindingResources] = useState(false);
   const [feedbackChoice, setFeedbackChoice] = useState<FeedbackChoice | null>(null);
-  const [feedbackText, setFeedbackText] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
@@ -272,7 +277,6 @@ function HomeScreen() {
           setCurrentProfile(null);
           setResources([]);
           setFeedbackChoice(null);
-          setFeedbackText("");
         }
       } catch {
         if (isCurrent) {
@@ -319,7 +323,6 @@ function HomeScreen() {
       setCurrentProfile(profile);
       setResources([]);
       setFeedbackChoice(null);
-      setFeedbackText("");
     } catch {
       setBuilderErrors({
         form: "Tell Atlas a little more so I can help.",
@@ -423,9 +426,7 @@ function HomeScreen() {
           {analysis && (
             <AtlasFeedbackCard
               choice={feedbackChoice}
-              text={feedbackText}
               onSelect={setFeedbackChoice}
-              onTextChange={setFeedbackText}
             />
           )}
           {resources.length > 0 && <ResourceList resources={resources} />}
@@ -518,6 +519,9 @@ function QuickProfileBuilder({
             <p className="mt-2 text-sm font-extrabold leading-snug text-slate-500">
               Share the basics. Atlas will pick one next move.
             </p>
+            <p className="mt-3 rounded-[1rem] bg-[#fff4c8] px-3 py-2 text-xs font-extrabold leading-snug text-[#8a6820]">
+              Early demo: Don&apos;t enter sensitive private information. Atlas does not create an account or save a permanent student profile yet.
+            </p>
           </div>
           <button
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#20233a] shadow-soft"
@@ -568,11 +572,41 @@ function QuickProfileBuilder({
             />
           </BuilderField>
 
+          <BuilderField label="School name">
+            <input
+              className="h-12 w-full rounded-2xl bg-white px-4 text-base font-extrabold outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="Optional"
+              value={form.schoolName}
+              onChange={(event) => update("schoolName", event.target.value)}
+            />
+          </BuilderField>
+
+          <BuilderField label="Current classes / courses">
+            <textarea
+              className="min-h-[76px] w-full resize-none rounded-2xl bg-white p-4 text-base font-extrabold leading-snug outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="AP Biology, Honors English, Precalculus..."
+              value={form.currentClasses}
+              onChange={(event) => update("currentClasses", event.target.value)}
+            />
+          </BuilderField>
+
           <BuilderField label="What are you hoping Atlas helps with most?">
             <ChoiceGrid
               options={advisorGoalOptions.map(([label, value]) => [label, value])}
               value={form.advisorGoal}
               onChange={(value) => update("advisorGoal", value as AdvisorGoal)}
+            />
+          </BuilderField>
+
+          <BuilderField
+            helper="What are you interested in? What activities do you do? What are you hoping to achieve? What would you want a mentor to know?"
+            label="Tell Atlas about yourself"
+          >
+            <textarea
+              className="min-h-[124px] w-full resize-none rounded-2xl bg-white p-4 text-base font-extrabold leading-snug outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="I&apos;m interested in law and public service. I do speech and debate, volunteer locally, and I&apos;m trying to figure out how to stand out..."
+              value={form.narrative}
+              onChange={(event) => update("narrative", event.target.value)}
             />
           </BuilderField>
 
@@ -713,16 +747,23 @@ function QuickProfileBuilder({
 
 function BuilderField({
   error,
+  helper,
   label,
   children,
 }: {
   error?: string;
+  helper?: string;
   label: string;
   children: ReactNode;
 }) {
   return (
     <div className="block">
       <span className="mb-2 block text-sm font-black text-slate-500">{label}</span>
+      {helper && (
+        <span className="mb-3 block text-xs font-extrabold leading-snug text-slate-400">
+          {helper}
+        </span>
+      )}
       {children}
       {error && (
         <span className="mt-2 block text-sm font-extrabold leading-snug text-[#d04b6a]">
@@ -826,7 +867,7 @@ function HeroRecommendationCard({
           <Zap size={14} fill="currentColor" />
           Atlas Recommendation
         </div>
-        <h1 className="max-w-[14rem] text-[2.85rem] font-black leading-[0.88] tracking-normal text-[#20233a]">
+        <h1 className="max-w-[15.5rem] text-[clamp(2.1rem,10.5vw,2.85rem)] font-black leading-[0.9] tracking-normal text-[#20233a] [overflow-wrap:anywhere]">
           {recommendation?.title ?? "Gain Research Experience"}
         </h1>
         <p className="mt-4 max-w-[13rem] text-[1.02rem] font-extrabold leading-snug text-[#444253]">
@@ -884,14 +925,10 @@ function MicroscopeIllustration() {
 
 function AtlasFeedbackCard({
   choice,
-  text,
   onSelect,
-  onTextChange,
 }: {
   choice: FeedbackChoice | null;
-  text: string;
   onSelect: (choice: FeedbackChoice) => void;
-  onTextChange: (text: string) => void;
 }) {
   const options = [
     { id: "yes", label: "👍 Yes" },
@@ -908,7 +945,7 @@ function AtlasFeedbackCard({
         <div>
           <h2 className="text-2xl font-black leading-none">How did Atlas do?</h2>
           <p className="mt-1 text-sm font-extrabold text-slate-400">
-            Did Atlas understand you?
+            Did this recommendation feel right?
           </p>
         </div>
       </div>
@@ -930,17 +967,9 @@ function AtlasFeedbackCard({
         })}
       </div>
       {choice && (
-        <label className="mt-4 block">
-          <span className="mb-2 block text-sm font-black text-slate-500">
-            What did Atlas miss?
-          </span>
-          <textarea
-            className="min-h-[88px] w-full resize-none rounded-2xl bg-[#f7f8fb] p-4 text-sm font-extrabold leading-snug outline-none placeholder:text-slate-300"
-            placeholder="Optional note for testing..."
-            value={text}
-            onChange={(event) => onTextChange(event.target.value)}
-          />
-        </label>
+        <p className="mt-4 rounded-[1.15rem] bg-[#f3fffb] px-4 py-3 text-sm font-black leading-snug text-[#087d66]">
+          Thanks — this helps improve Atlas.
+        </p>
       )}
     </section>
   );
@@ -1218,7 +1247,9 @@ function builderFormToProfile(form: BuilderForm): StudentProfile {
     name: form.name.trim() || "Student",
     grade: Number(form.grade),
     location: form.location.trim() || "New Jersey",
+    schoolName: form.schoolName.trim() || undefined,
     interests,
+    notes: form.narrative.trim() || undefined,
     goals: buildGoals(interests, form.project, form.advisorGoal),
     academics: {
       gpa: gpaFromRange(form.gpaRange),
@@ -1227,7 +1258,7 @@ function builderFormToProfile(form: BuilderForm): StudentProfile {
     },
     courseRigor: {
       level: form.courseRigor,
-      courses: courseNotes(form.courseRigor),
+      courses: classList(form.currentClasses, form.courseRigor),
     },
     activities,
     leadership: leadershipFromLevel(form.leadership),
@@ -1353,6 +1384,16 @@ function courseNotes(rigor: BuilderCourseRigor) {
     unknown: ["Course rigor not sure"],
   };
   return courses[rigor];
+}
+
+function classList(classes: string, rigor: BuilderCourseRigor) {
+  const parsed = classes
+    .split(/[\n,]/)
+    .map((course) => course.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  return parsed.length > 0 ? parsed : courseNotes(rigor);
 }
 
 function leadershipFromLevel(level: LeadershipLevel): StudentProfile["leadership"] {
