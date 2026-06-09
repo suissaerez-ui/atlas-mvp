@@ -36,12 +36,9 @@ import type {
 
 type Screen = "home" | "profile" | "chat" | "add" | "you";
 type DemoStudent = "sarah" | "jake" | "emma" | "max" | "ava" | "leo" | "mia" | "lily";
-type GpaRange = "below_3" | "3_0_3_4" | "3_5_3_7" | "3_8_plus";
+type AcademicStrength = "mostly_as" | "a_b_student" | "mostly_bs" | "below_bs" | "not_sure";
 type BuilderCourseRigor = "light" | "balanced" | "rigorous" | "unknown";
-type LeadershipLevel = "none" | "some" | "meaningful";
-type ServiceRange = "none" | "1_50" | "50_100" | "100_plus";
 type AwardLevel = "none" | "school" | "regional" | "state_national";
-type ProjectLevel = "none" | "class" | "independent" | "research" | "creative";
 type ApplicationMaterial = "resume" | "essay" | "transcript" | "none";
 type AdvisorGoal =
   | "college_applications"
@@ -53,7 +50,7 @@ type AdvisorGoal =
   | "portfolio_project"
   | "organize_materials"
   | "not_sure";
-type BuilderErrors = Partial<Record<"name" | "interests" | "gpaRange" | "form", string>>;
+type BuilderErrors = Partial<Record<"name" | "futureDirection" | "energy" | "advisorGoal" | "form", string>>;
 type FeedbackChoice = "yes" | "mostly" | "not_really";
 
 type BuilderForm = {
@@ -63,15 +60,16 @@ type BuilderForm = {
   schoolName: string;
   currentClasses: string;
   narrative: string;
+  futureDirection: string;
+  energy: string;
   advisorGoal: AdvisorGoal;
-  interests: string[];
-  gpaRange: GpaRange;
+  academicStrength: AcademicStrength;
   courseRigor: BuilderCourseRigor;
   activities: string;
-  leadership: LeadershipLevel;
-  service: ServiceRange;
+  leadership: string;
+  service: string;
   awards: AwardLevel;
-  project: ProjectLevel;
+  projects: string;
   applicationMaterials: ApplicationMaterial[];
 };
 
@@ -86,27 +84,14 @@ const demoStudents = [
   { id: "lily", label: "Lily" },
 ] satisfies { id: DemoStudent; label: string }[];
 
-const interestOptions = [
-  "STEM",
-  "Engineering",
-  "Medicine",
-  "Business",
-  "Writing",
-  "Art",
-  "Law",
-  "Service",
-  "Sports",
-  "Undecided",
-];
-
 const advisorGoalOptions = [
+  ["Find direction", "find_direction"],
   ["Build stronger college applications", "college_applications"],
   ["Find scholarships", "scholarships"],
   ["Find summer opportunities", "summer_opportunities"],
   ["Improve grades", "improve_grades"],
   ["Build leadership", "build_leadership"],
-  ["Find a direction", "find_direction"],
-  ["Build a portfolio/project", "portfolio_project"],
+  ["Build a project or portfolio", "portfolio_project"],
   ["Organize application materials", "organize_materials"],
   ["Not sure", "not_sure"],
 ] satisfies Array<[string, AdvisorGoal]>;
@@ -118,15 +103,16 @@ const initialBuilderForm: BuilderForm = {
   schoolName: "",
   currentClasses: "",
   narrative: "",
+  futureDirection: "",
+  energy: "",
   advisorGoal: "not_sure",
-  interests: [],
-  gpaRange: "3_5_3_7",
+  academicStrength: "not_sure",
   courseRigor: "balanced",
   activities: "",
-  leadership: "none",
-  service: "none",
+  leadership: "",
+  service: "",
   awards: "none",
-  project: "none",
+  projects: "",
   applicationMaterials: ["none"],
 };
 
@@ -590,7 +576,33 @@ function QuickProfileBuilder({
             />
           </BuilderField>
 
-          <BuilderField label="What are you hoping Atlas helps with most?">
+          <BuilderField
+            error={errors.futureDirection}
+            helper="Examples: Doctor, lawyer, engineer, teacher, business owner, or not sure."
+            label="What do you think you&apos;d like to do after high school or when you&apos;re older?"
+          >
+            <input
+              className="h-12 w-full rounded-2xl bg-white px-4 text-base font-extrabold outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="Doctor, lawyer, engineer, not sure..."
+              value={form.futureDirection}
+              onChange={(event) => update("futureDirection", event.target.value)}
+            />
+          </BuilderField>
+
+          <BuilderField
+            error={errors.energy}
+            helper="Examples: dance, sports, gaming, reading, coding, volunteering, music, creating content."
+            label="What do you spend the most time doing when nobody is making you do it?"
+          >
+            <input
+              className="h-12 w-full rounded-2xl bg-white px-4 text-base font-extrabold outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="Dance, gaming, coding, music..."
+              value={form.energy}
+              onChange={(event) => update("energy", event.target.value)}
+            />
+          </BuilderField>
+
+          <BuilderField error={errors.advisorGoal} label="What would feel most helpful right now?">
             <ChoiceGrid
               options={advisorGoalOptions.map(([label, value]) => [label, value])}
               value={form.advisorGoal}
@@ -610,31 +622,17 @@ function QuickProfileBuilder({
             />
           </BuilderField>
 
-          <BuilderField error={errors.interests} label="Interests">
-            <ChipGroup
-              options={interestOptions}
-              selected={form.interests}
-              onToggle={(interest) =>
-                update(
-                  "interests",
-                  form.interests.includes(interest)
-                    ? form.interests.filter((item) => item !== interest)
-                    : [...form.interests, interest],
-                )
-              }
-            />
-          </BuilderField>
-
-          <BuilderField error={errors.gpaRange} label="GPA range">
+          <BuilderField label="Academic strength">
             <ChoiceGrid
               options={[
-                ["Below 3.0", "below_3"],
-                ["3.0-3.4", "3_0_3_4"],
-                ["3.5-3.7", "3_5_3_7"],
-                ["3.8+", "3_8_plus"],
+                ["Mostly A's", "mostly_as"],
+                ["A/B Student", "a_b_student"],
+                ["Mostly B's", "mostly_bs"],
+                ["Below B's", "below_bs"],
+                ["Not Sure", "not_sure"],
               ]}
-              value={form.gpaRange}
-              onChange={(value) => update("gpaRange", value as GpaRange)}
+              value={form.academicStrength}
+              onChange={(value) => update("academicStrength", value as AcademicStrength)}
             />
           </BuilderField>
 
@@ -651,37 +649,39 @@ function QuickProfileBuilder({
             />
           </BuilderField>
 
-          <BuilderField label="Activities">
+          <BuilderField
+            helper="Tell Atlas what you&apos;re involved in."
+            label="Activities, clubs, sports, hobbies, jobs, or programs"
+          >
             <textarea
               className="min-h-[92px] w-full resize-none rounded-2xl bg-white p-4 text-base font-extrabold leading-snug outline-none shadow-soft placeholder:text-slate-300"
-              placeholder="Soccer, biology club, job, theater..."
+              placeholder="Dance, robotics, soccer, theater, coding, babysitting, music lessons..."
               value={form.activities}
               onChange={(event) => update("activities", event.target.value)}
             />
           </BuilderField>
 
-          <BuilderField label="Leadership">
-            <ChoiceGrid
-              options={[
-                ["None", "none"],
-                ["Some role/title", "some"],
-                ["Led something meaningful", "meaningful"],
-              ]}
+          <BuilderField
+            helper="Anything where you organize, mentor, lead, captain, teach, or take ownership."
+            label="Leadership roles"
+          >
+            <textarea
+              className="min-h-[82px] w-full resize-none rounded-2xl bg-white p-4 text-base font-extrabold leading-snug outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="Club officer, team captain, peer mentor, dance assistant..."
               value={form.leadership}
-              onChange={(value) => update("leadership", value as LeadershipLevel)}
+              onChange={(event) => update("leadership", event.target.value)}
             />
           </BuilderField>
 
-          <BuilderField label="Service / volunteer hours">
-            <ChoiceGrid
-              options={[
-                ["None", "none"],
-                ["1-50", "1_50"],
-                ["50-100", "50_100"],
-                ["100+", "100_plus"],
-              ]}
+          <BuilderField
+            helper="Ways you help your school, community, religious organization, nonprofit, hospital, etc."
+            label="Volunteering or community involvement"
+          >
+            <textarea
+              className="min-h-[82px] w-full resize-none rounded-2xl bg-white p-4 text-base font-extrabold leading-snug outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="Hospital volunteering, tutoring, food pantry, community events..."
               value={form.service}
-              onChange={(value) => update("service", value as ServiceRange)}
+              onChange={(event) => update("service", event.target.value)}
             />
           </BuilderField>
 
@@ -698,17 +698,15 @@ function QuickProfileBuilder({
             />
           </BuilderField>
 
-          <BuilderField label="Projects / research / portfolio">
-            <ChoiceGrid
-              options={[
-                ["None yet", "none"],
-                ["Class project only", "class"],
-                ["Independent project", "independent"],
-                ["Research", "research"],
-                ["Creative portfolio", "creative"],
-              ]}
-              value={form.project}
-              onChange={(value) => update("project", value as ProjectLevel)}
+          <BuilderField
+            helper="App, podcast, fundraiser, science project, business idea, research, writing, portfolio, choreography, etc."
+            label="Anything you&apos;ve built, created, researched, launched, or started"
+          >
+            <textarea
+              className="min-h-[92px] w-full resize-none rounded-2xl bg-white p-4 text-base font-extrabold leading-snug outline-none shadow-soft placeholder:text-slate-300"
+              placeholder="Science project, choreography, writing portfolio, small business idea..."
+              value={form.projects}
+              onChange={(event) => update("projects", event.target.value)}
             />
           </BuilderField>
 
@@ -945,7 +943,7 @@ function AtlasFeedbackCard({
         <div>
           <h2 className="text-2xl font-black leading-none">How did Atlas do?</h2>
           <p className="mt-1 text-sm font-extrabold text-slate-400">
-            Did this recommendation feel right?
+            Did Atlas understand you?
           </p>
         </div>
       </div>
@@ -1210,12 +1208,16 @@ function validateBuilderForm(form: BuilderForm): BuilderErrors {
     errors.name = message;
   }
 
-  if (form.interests.length === 0) {
-    errors.interests = message;
+  if (!form.futureDirection.trim()) {
+    errors.futureDirection = message;
   }
 
-  if (!form.gpaRange) {
-    errors.gpaRange = message;
+  if (!form.energy.trim()) {
+    errors.energy = message;
+  }
+
+  if (!form.advisorGoal) {
+    errors.advisorGoal = message;
   }
 
   if (Object.keys(errors).length > 0) {
@@ -1239,7 +1241,7 @@ function formatConstraint(constraint: AtlasAnalysisResponse["archetype"]["primar
 }
 
 function builderFormToProfile(form: BuilderForm): StudentProfile {
-  const interests = form.interests.length > 0 ? form.interests : ["Undecided"];
+  const interests = buildInterests(form.futureDirection, form.energy, form.narrative);
   const activities = parseActivities(form.activities);
   const materialSet = new Set(form.applicationMaterials);
 
@@ -1249,26 +1251,29 @@ function builderFormToProfile(form: BuilderForm): StudentProfile {
     location: form.location.trim() || "New Jersey",
     schoolName: form.schoolName.trim() || undefined,
     interests,
+    futureDirection: form.futureDirection.trim(),
+    energy: form.energy.trim(),
+    intent: advisorGoalText(form.advisorGoal),
     notes: form.narrative.trim() || undefined,
-    goals: buildGoals(interests, form.project, form.advisorGoal),
+    goals: buildGoals(interests, form.advisorGoal),
     academics: {
-      gpa: gpaFromRange(form.gpaRange),
+      gpa: gpaFromAcademicStrength(form.academicStrength),
       trend: "unknown",
-      notes: academicNotes(form.gpaRange),
+      notes: academicNotes(form.academicStrength),
     },
     courseRigor: {
       level: form.courseRigor,
       courses: classList(form.currentClasses, form.courseRigor),
     },
     activities,
-    leadership: leadershipFromLevel(form.leadership),
+    leadership: leadershipFromText(form.leadership),
     service: {
-      hours: serviceHours(form.service),
-      focusAreas: form.service === "none" ? [] : ["community involvement"],
-      notes: serviceNotes(form.service),
+      hours: serviceHoursFromText(form.service),
+      focusAreas: form.service.trim() ? parseEvidenceList(form.service).slice(0, 4) : [],
+      notes: form.service.trim() ? parseEvidenceList(form.service).slice(0, 4) : ["No service evidence added yet"],
     },
     awards: awardsFromLevel(form.awards),
-    projects: projectFromLevel(form.project),
+    projects: projectsFromText(form.projects),
     essays: materialSet.has("essay")
       ? [{ title: "Essay draft", status: "drafting" }]
       : [],
@@ -1290,10 +1295,7 @@ function builderFormToProfile(form: BuilderForm): StudentProfile {
 }
 
 function parseActivities(text: string): StudentProfile["activities"] {
-  return text
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
+  return parseEvidenceList(text)
     .slice(0, 6)
     .map((name) => ({
       name,
@@ -1304,7 +1306,7 @@ function parseActivities(text: string): StudentProfile["activities"] {
 
 function inferActivityCategory(name: string) {
   const lower = name.toLowerCase();
-  if (lower.includes("theater") || lower.includes("art") || lower.includes("writing")) {
+  if (lower.includes("dance") || lower.includes("theater") || lower.includes("art") || lower.includes("writing") || lower.includes("music")) {
     return "arts";
   }
   if (lower.includes("robot") || lower.includes("bio") || lower.includes("science")) {
@@ -1322,17 +1324,20 @@ function inferActivityCategory(name: string) {
   return "activity";
 }
 
-function buildGoals(interests: string[], project: ProjectLevel, advisorGoal: AdvisorGoal) {
+function buildInterests(futureDirection: string, energy: string, narrative: string) {
+  const values = [futureDirection, energy, narrative]
+    .flatMap((text) => parseEvidenceList(text))
+    .filter(Boolean);
+
+  return values.length > 0 ? values.slice(0, 6) : ["Undecided"];
+}
+
+function buildGoals(interests: string[], advisorGoal: AdvisorGoal) {
   const direction = interests.filter((interest) => interest !== "Undecided").join(", ");
   const goals = direction
     ? [`Build a stronger story around ${direction}`]
     : ["Find a clearer direction"];
   goals.push(advisorGoalText(advisorGoal));
-
-  if (project === "none" || project === "class") {
-    goals.push("Create stronger proof of original work");
-  }
-
   goals.push("Find the next best move");
   return goals;
 }
@@ -1353,25 +1358,29 @@ function advisorGoalText(goal: AdvisorGoal) {
   return labels[goal];
 }
 
-function gpaFromRange(range: GpaRange) {
-  const values: Record<GpaRange, number> = {
-    below_3: 2.8,
-    "3_0_3_4": 3.25,
-    "3_5_3_7": 3.6,
-    "3_8_plus": 3.9,
+function gpaFromAcademicStrength(strength: AcademicStrength) {
+  const values: Record<AcademicStrength, number> = {
+    mostly_as: 3.9,
+    a_b_student: 3.55,
+    mostly_bs: 3.1,
+    below_bs: 2.7,
+    not_sure: 3.35,
   };
-  return values[range];
+  return values[strength];
 }
 
-function academicNotes(range: GpaRange) {
-  if (range === "below_3") {
+function academicNotes(strength: AcademicStrength) {
+  if (strength === "below_bs") {
     return ["Academic foundation needs support"];
   }
-  if (range === "3_0_3_4") {
+  if (strength === "mostly_bs") {
     return ["Academic performance is developing"];
   }
-  if (range === "3_5_3_7") {
+  if (strength === "a_b_student") {
     return ["Solid academic foundation"];
+  }
+  if (strength === "not_sure") {
+    return ["Academic strength not sure yet"];
   }
   return ["Strong grades"];
 }
@@ -1396,37 +1405,15 @@ function classList(classes: string, rigor: BuilderCourseRigor) {
   return parsed.length > 0 ? parsed : courseNotes(rigor);
 }
 
-function leadershipFromLevel(level: LeadershipLevel): StudentProfile["leadership"] {
-  if (level === "none") {
-    return [];
-  }
-
-  return [
-    {
-      role: level === "meaningful" ? "Led something meaningful" : "Some role or title",
-      organization: "Student activity",
-    },
-  ];
+function leadershipFromText(text: string): StudentProfile["leadership"] {
+  return parseEvidenceList(text).slice(0, 4).map((item) => ({
+    role: item,
+    organization: "Student experience",
+  }));
 }
 
-function serviceHours(service: ServiceRange) {
-  const values: Record<ServiceRange, number> = {
-    none: 0,
-    "1_50": 25,
-    "50_100": 75,
-    "100_plus": 125,
-  };
-  return values[service];
-}
-
-function serviceNotes(service: ServiceRange) {
-  if (service === "none") {
-    return ["No service hours logged yet"];
-  }
-  if (service === "100_plus") {
-    return ["Meaningful service involvement"];
-  }
-  return ["Some service involvement"];
+function serviceHoursFromText(text: string) {
+  return text.trim() ? 40 : 0;
 }
 
 function awardsFromLevel(level: AwardLevel): StudentProfile["awards"] {
@@ -1448,39 +1435,34 @@ function awardsFromLevel(level: AwardLevel): StudentProfile["awards"] {
   ];
 }
 
-function projectFromLevel(level: ProjectLevel): StudentProfile["projects"] {
-  if (level === "none") {
-    return [];
+function projectsFromText(text: string): StudentProfile["projects"] {
+  return parseEvidenceList(text).slice(0, 5).map((title) => ({
+    title,
+    type: inferProjectType(title),
+    status: "in_progress",
+    notes: title,
+  }));
+}
+
+function inferProjectType(title: string): StudentProfile["projects"][number]["type"] {
+  const lower = title.toLowerCase();
+  if (lower.includes("research") || lower.includes("science")) {
+    return "research";
   }
+  if (lower.includes("portfolio") || lower.includes("writing") || lower.includes("art") || lower.includes("dance") || lower.includes("choreography")) {
+    return "creative_portfolio";
+  }
+  if (lower.includes("fundraiser") || lower.includes("service") || lower.includes("community")) {
+    return "community_project";
+  }
+  return "original_project";
+}
 
-  const projectMap: Record<Exclude<ProjectLevel, "none">, StudentProfile["projects"][number]> = {
-    class: {
-      title: "Class project",
-      type: "class_project",
-      status: "complete",
-      notes: "Completed as part of coursework.",
-    },
-    independent: {
-      title: "Independent project",
-      type: "original_project",
-      status: "in_progress",
-      notes: "Independent project in progress.",
-    },
-    research: {
-      title: "Research project",
-      type: "research",
-      status: "in_progress",
-      notes: "Research experience or project in progress.",
-    },
-    creative: {
-      title: "Creative portfolio",
-      type: "creative_portfolio",
-      status: "in_progress",
-      notes: "Creative portfolio or original body of work in progress.",
-    },
-  };
-
-  return [projectMap[level]];
+function parseEvidenceList(text: string) {
+  return text
+    .split(/[\n,;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function materialLabel(material: ApplicationMaterial) {

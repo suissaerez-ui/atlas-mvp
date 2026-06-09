@@ -39,11 +39,31 @@ export type StudentArchetype = {
   priority: number;
 };
 
+export type StudentUnderstanding = {
+  becoming: string;
+  identitySignals: {
+    futureDirection: string;
+    energy: string;
+    interests: string[];
+    motivations: string[];
+  };
+  evidenceSignals: {
+    academicStrength: string;
+    activities: string[];
+    leadership: string[];
+    service: string[];
+    projects: string[];
+  };
+};
+
 export type StudentProfile = {
   name: string;
   grade: number;
   location: string;
   schoolName?: string;
+  futureDirection?: string;
+  energy?: string;
+  intent?: string;
   interests: string[];
   goals: string[];
   notes?: string;
@@ -129,6 +149,7 @@ export type AtlasResourceCard = {
 export type AtlasAnalysisResponse = {
   studentName: string;
   profileSummary: string;
+  understanding: StudentUnderstanding;
   rubric: AtlasRubricArea[];
   archetype: StudentArchetype;
   strengths: Array<{

@@ -1,0 +1,303 @@
+import type { StudentProfile } from "./types";
+
+export type AtlasTestProfile = StudentProfile & {
+  expectedRecommendationNote: string;
+};
+
+export const atlasTestProfiles: AtlasTestProfile[] = [
+  {
+    name: "Future Doctor",
+    grade: 11,
+    location: "New Jersey",
+    futureDirection: "Doctor or public health",
+    energy: "Reading health stories and helping people",
+    intent: "Find summer opportunities",
+    interests: ["medicine", "public health", "biology", "service"],
+    goals: ["Find summer opportunities", "Build stronger college applications"],
+    notes:
+      "Interested in medicine and public health. Strong writer, hospital volunteer, and curious about how health information reaches families.",
+    academics: {
+      gpa: 3.9,
+      trend: "up",
+      notes: ["Mostly A's", "Strong biology and writing performance"],
+    },
+    courseRigor: {
+      level: "rigorous",
+      courses: ["AP Biology", "Honors Chemistry", "English Honors"],
+    },
+    activities: [
+      { name: "Hospital volunteering", category: "service", years: 1 },
+      { name: "School newspaper health column", category: "writing", years: 1 },
+    ],
+    leadership: [],
+    service: {
+      hours: 80,
+      focusAreas: ["hospital volunteering", "public health"],
+      notes: ["Hospital volunteering", "Patient support"],
+    },
+    awards: [{ title: "Biology Department Recognition", level: "school" }],
+    projects: [],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote:
+      "healthcare exposure / public health / shadowing / health project",
+  },
+  {
+    name: "Debate Law",
+    grade: 11,
+    location: "New Jersey",
+    futureDirection: "Law, policy, or public service",
+    energy: "Debate, student government, reading about current events",
+    intent: "Build stronger college applications",
+    interests: ["law", "policy", "debate", "public service"],
+    goals: ["Build stronger college applications", "Build leadership"],
+    notes:
+      "Interested in law and public service. Does speech and debate, follows local government, and wants to advocate for people.",
+    academics: {
+      gpa: 3.75,
+      trend: "flat",
+      notes: ["A/B student", "Strong humanities and communication performance"],
+    },
+    courseRigor: {
+      level: "balanced",
+      courses: ["AP Government", "English Honors", "US History"],
+    },
+    activities: [
+      { name: "Speech and Debate", category: "debate", years: 2 },
+      { name: "Student Government", category: "civic", years: 1 },
+    ],
+    leadership: [{ role: "Debate novice mentor", organization: "Speech and Debate" }],
+    service: {
+      hours: 35,
+      focusAreas: ["community events"],
+      notes: ["Community volunteering"],
+    },
+    awards: [{ title: "Debate finalist", level: "school" }],
+    projects: [],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote:
+      "policy/civic project / debate leadership / public service initiative",
+  },
+  {
+    name: "Creative Performer",
+    grade: 10,
+    location: "New Jersey",
+    futureDirection: "Creative work, media, or performance",
+    energy: "Dance, choreography, music, and creating performances",
+    intent: "Build a project or portfolio",
+    interests: ["dance", "creative performance", "media"],
+    goals: ["Build a portfolio or project", "Find summer opportunities"],
+    notes:
+      "Spends most free time dancing and making choreography. Not interested in sports, but likes performance, expression, and creative discipline.",
+    academics: {
+      gpa: 3.6,
+      trend: "flat",
+      notes: ["A/B student", "Consistent academic foundation"],
+    },
+    courseRigor: {
+      level: "balanced",
+      courses: ["English Honors", "Dance", "Algebra II"],
+    },
+    activities: [
+      { name: "Dance company", category: "arts", years: 4 },
+      { name: "Music lessons", category: "arts", years: 2 },
+    ],
+    leadership: [],
+    service: {
+      hours: 15,
+      focusAreas: ["school performances"],
+      notes: ["Helped with school performance events"],
+    },
+    awards: [],
+    projects: [
+      {
+        title: "Choreography reel in progress",
+        type: "creative_portfolio",
+        status: "in_progress",
+        notes: "Creative performance portfolio in progress.",
+      },
+    ],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote: "creative portfolio / performance leadership, NOT sports",
+  },
+  {
+    name: "Entrepreneur",
+    grade: 11,
+    location: "New Jersey",
+    futureDirection: "Business owner or entrepreneur",
+    energy: "Selling things online, DECA, business videos",
+    intent: "Build a project or portfolio",
+    interests: ["business", "entrepreneurship", "DECA"],
+    goals: ["Build a portfolio or project", "Build stronger college applications"],
+    notes:
+      "Interested in entrepreneurship and small businesses. Has DECA experience but has not launched a real venture yet.",
+    academics: {
+      gpa: 3.65,
+      trend: "flat",
+      notes: ["A/B student", "Solid academic foundation"],
+    },
+    courseRigor: {
+      level: "balanced",
+      courses: ["Economics", "Precalculus", "English Honors"],
+    },
+    activities: [
+      { name: "DECA", category: "business", years: 2 },
+      { name: "Part-time job", category: "work", years: 1 },
+    ],
+    leadership: [],
+    service: {
+      hours: 10,
+      focusAreas: ["school events"],
+      notes: ["Some service involvement"],
+    },
+    awards: [{ title: "DECA school award", level: "school" }],
+    projects: [],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote: "original venture / business initiative",
+  },
+  {
+    name: "Undecided High Achiever",
+    grade: 11,
+    location: "New Jersey",
+    futureDirection: "Not sure",
+    energy: "Reading, helping classmates, trying different clubs",
+    intent: "Find direction",
+    interests: ["undecided", "reading", "service", "clubs"],
+    goals: ["Find a direction"],
+    notes:
+      "Strong student but not sure what direction fits yet. Enjoys reading, helping classmates, and trying different activities.",
+    academics: {
+      gpa: 3.95,
+      trend: "up",
+      notes: ["Mostly A's", "Strong academic foundation"],
+    },
+    courseRigor: {
+      level: "rigorous",
+      courses: ["AP English", "AP US History", "Honors Chemistry"],
+    },
+    activities: [
+      { name: "Book club", category: "club", years: 1 },
+      { name: "Peer tutoring", category: "service", years: 1 },
+    ],
+    leadership: [],
+    service: {
+      hours: 50,
+      focusAreas: ["peer tutoring"],
+      notes: ["Peer tutoring", "School service"],
+    },
+    awards: [{ title: "Honor Roll", level: "school" }],
+    projects: [],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote: "exploration / direction clarity, NOT invented career",
+  },
+  {
+    name: "Future Engineer",
+    grade: 10,
+    location: "New Jersey",
+    futureDirection: "Engineer",
+    energy: "Robotics, coding, building small devices",
+    intent: "Find summer opportunities",
+    interests: ["engineering", "robotics", "coding"],
+    goals: ["Find summer opportunities", "Build a portfolio or project"],
+    notes:
+      "Interested in engineering and robotics. Likes taking things apart, coding simple tools, and building with friends.",
+    academics: {
+      gpa: 3.7,
+      trend: "up",
+      notes: ["A/B student", "Strong math and science performance"],
+    },
+    courseRigor: {
+      level: "balanced",
+      courses: ["Precalculus", "Physics", "Intro to Engineering"],
+    },
+    activities: [{ name: "Robotics club", category: "STEM", years: 2 }],
+    leadership: [],
+    service: {
+      hours: 10,
+      focusAreas: ["school events"],
+      notes: ["Some service involvement"],
+    },
+    awards: [],
+    projects: [],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote: "technical project / portfolio / robotics/hackathon",
+  },
+  {
+    name: "Service-Oriented Student",
+    grade: 11,
+    location: "New Jersey",
+    futureDirection: "Teacher, nonprofit work, or community leadership",
+    energy: "Tutoring younger students and volunteering",
+    intent: "Build leadership",
+    interests: ["service", "education", "mentoring", "community"],
+    goals: ["Build leadership", "Build stronger college applications"],
+    notes:
+      "Enjoys helping younger students and volunteering through a local community center. Wants the work to make a visible difference.",
+    academics: {
+      gpa: 3.55,
+      trend: "flat",
+      notes: ["A/B student", "Steady academic foundation"],
+    },
+    courseRigor: {
+      level: "balanced",
+      courses: ["English Honors", "Psychology", "Algebra II"],
+    },
+    activities: [{ name: "Peer tutoring", category: "service", years: 2 }],
+    leadership: [],
+    service: {
+      hours: 130,
+      focusAreas: ["tutoring", "community center"],
+      notes: ["Peer tutoring", "Community center volunteering"],
+    },
+    awards: [],
+    projects: [],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote: "education/service initiative / mentoring impact",
+  },
+  {
+    name: "Gaming Builder",
+    grade: 10,
+    location: "New Jersey",
+    futureDirection: "Game developer or software builder",
+    energy: "Gaming, modding, coding, designing game levels",
+    intent: "Build a project or portfolio",
+    interests: ["gaming", "coding", "game design", "STEM"],
+    goals: ["Build a portfolio or project"],
+    notes:
+      "Spends free time gaming, modding, and trying to build small games. Wants something real to show, not just another club.",
+    academics: {
+      gpa: 3.4,
+      trend: "up",
+      notes: ["Mostly B's", "Academic foundation is developing"],
+    },
+    courseRigor: {
+      level: "balanced",
+      courses: ["Algebra II", "Computer Science", "English 10"],
+    },
+    activities: [{ name: "Gaming club", category: "club", years: 1 }],
+    leadership: [],
+    service: {
+      hours: 0,
+      focusAreas: [],
+      notes: ["No service evidence added yet"],
+    },
+    awards: [],
+    projects: [
+      {
+        title: "Small game prototype",
+        type: "original_project",
+        status: "in_progress",
+        notes: "Early game prototype.",
+      },
+    ],
+    essays: [],
+    documents: [],
+    expectedRecommendationNote: "game portfolio / coding project, NOT generic clubs",
+  },
+];

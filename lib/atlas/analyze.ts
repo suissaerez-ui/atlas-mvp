@@ -5,6 +5,7 @@ import type {
   RecommendationAction,
   RecommendationCategory,
   StudentArchetype,
+  StudentUnderstanding,
   StudentProfile,
 } from "./types";
 
@@ -26,6 +27,7 @@ const guardrails = [
 ];
 
 export function analyzeStudent(profile: StudentProfile): AtlasAnalysisResponse {
+  const understanding = buildStudentUnderstanding(profile);
   const rubric = buildRubric(profile);
   const archetype = identifyStudentArchetype(profile, rubric);
   const candidates = buildRecommendationCandidates(profile, rubric, archetype);
@@ -52,6 +54,7 @@ export function analyzeStudent(profile: StudentProfile): AtlasAnalysisResponse {
   return {
     studentName: displayName(profile.name),
     profileSummary: generateProfileSummary(profile, rubric, nextBestMove),
+    understanding,
     rubric,
     archetype,
     strengths,
@@ -89,7 +92,8 @@ export function identifyStudentArchetype(
   const unclearDirection =
     profile.interests.length === 0 ||
     direction?.status === "unknown" ||
-    (profile.interests.length > 4 && profile.goals.length === 0);
+    (profile.interests.length > 4 && profile.goals.length === 0) ||
+    isUncertainDirection(profile);
 
   const matches = [
     archetypeIf(
@@ -134,7 +138,25 @@ export function identifyStudentArchetype(
         primaryConstraint: "direction_clarity",
         priority: 3,
       },
-      8,
+      isUncertainDirection(profile) ? 13 : 8,
+    ),
+    archetypeIf(
+      hasServiceEducationDirection(profile) &&
+        (leadership?.status === "opportunity" || differentiation?.status === "opportunity"),
+      {
+        id: "service_education_impact_constraint",
+        title: "Turn Helping Others Into Measurable Impact",
+        description:
+          "The student has a service or education direction and can turn helping others into clearer impact.",
+        evidence: [
+          "Service or education direction is present",
+          ...(service?.evidence ?? ["Service evidence is developing"]),
+          ...(leadership?.evidence ?? ["Leadership evidence can be clearer"]),
+        ],
+        primaryConstraint: "service_impact",
+        priority: 3.6,
+      },
+      Math.max(evidenceStrength(service), evidenceStrength(leadership)) + 3,
     ),
     archetypeIf(
       (profile.grade === 11 || profile.grade === 12) &&
@@ -172,6 +194,22 @@ export function identifyStudentArchetype(
         priority: 3.8,
       },
       evidenceStrength(leadership) + evidenceStrength(service) / 2,
+    ),
+    archetypeIf(
+      hasGamingBuilderDirection(profile) && isDevelopingOrOpportunity(originalWork),
+      {
+        id: "gaming_builder_differentiation_constraint",
+        title: "Turn Gaming Into a Builder Portfolio",
+        description:
+          "The student has gaming or builder energy and can turn it into visible project evidence.",
+        evidence: [
+          "Gaming, software, or builder direction is present",
+          ...(originalWork?.evidence ?? ["Project evidence can become stronger"]),
+        ],
+        primaryConstraint: "differentiation",
+        priority: 3.9,
+      },
+      evidenceStrength(originalWork) + 2,
     ),
     archetypeIf(
       (academics?.status === "strong" || profile.academics.gpa >= 3.5) &&
@@ -328,6 +366,44 @@ export function getOpportunityAreas(rubric: AtlasRubricArea[]): AtlasRubricArea[
     });
 }
 
+function buildStudentUnderstanding(profile: StudentProfile): StudentUnderstanding {
+  const futureDirection = primaryInterestDirection(profile);
+  const energy = profile.energy ? directionLabel(profile.energy) : inferredDirectionLabel(profile);
+  const interests = uniqueCompact([
+    futureDirection,
+    energy,
+    ...profile.interests.map(directionLabel),
+  ]).slice(0, 5);
+  const motivations = uniqueCompact([
+    profile.intent ?? primaryGoal(profile),
+    hasServiceDirection(profile) ? "Helping others" : "",
+    hasCreativeDirection(profile) ? "Creating and expressing ideas" : "",
+    hasBusinessDirection(profile) ? "Building initiative" : "",
+    hasStemDirection(profile) || hasMedicineDirection(profile) ? "Solving real problems" : "",
+  ]).slice(0, 4);
+
+  return {
+    becoming: `${displayName(profile.name)} is becoming a ${futureDirection.toLowerCase()}-oriented student with energy around ${energy.toLowerCase()}.`,
+    identitySignals: {
+      futureDirection,
+      energy,
+      interests,
+      motivations,
+    },
+    evidenceSignals: {
+      academicStrength: academicStrengthLabel(profile),
+      activities: profile.activities.map((activity) => activity.name).slice(0, 6),
+      leadership: profile.leadership.map((item) => item.role).slice(0, 4),
+      service: profile.service.notes.slice(0, 4),
+      projects: profile.projects.map((project) => project.title).slice(0, 5),
+    },
+  };
+}
+
+function uniqueCompact(items: string[]) {
+  return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
+}
+
 function archetypeIf(
   condition: boolean,
   archetype: StudentArchetype,
@@ -384,7 +460,7 @@ function archetypeBoost(
     direction_clarity: {
       find_program: 1.8,
       pursue_competition: 1.4,
-      build_original_project: 1,
+      build_original_project: 3.4,
     },
     differentiation: {
       gain_research_experience: 2.4,
@@ -395,8 +471,8 @@ function archetypeBoost(
     },
     service_impact: {
       deepen_service_impact: 2.4,
-      strengthen_leadership: 1.4,
-      build_original_project: 1,
+      strengthen_leadership: 3.2,
+      build_original_project: 2.2,
     },
     application_readiness: {
       organize_application_materials: 2.2,
@@ -568,8 +644,16 @@ function buildRecommendationCandidates(
       category: "build_original_project",
       confidence: "medium",
       whyNow: "",
-      evidenceUsed: hasCreativeDirection(profile)
-        ? ["Creative interests", "Portfolio evidence", "Writing, theater, art, or media direction"]
+      evidenceUsed: hasMedicineDirection(profile)
+        ? ["Health interest", "Service involvement", "Opportunity for research, shadowing, or a health project"]
+        : hasGamingBuilderDirection(profile)
+        ? ["Gaming and coding interest", "Early builder energy", "Project evidence in progress"]
+        : hasCreativeDirection(profile)
+          ? ["Creative interests", "Portfolio evidence", "Writing, theater, art, or media direction"]
+        : hasServiceEducationDirection(profile)
+          ? ["Service or education direction", "Helping others", "Opportunity to make impact measurable"]
+        : isUncertainDirection(profile)
+          ? ["Strong academic foundation", "Exploring interests", "Needs one clearer direction to test"]
         : hasBusinessDirection(profile)
           ? ["Business interests", "Activity involvement", "Limited venture or original project evidence"]
         : ["STEM interests", "Limited original work", "Science fair experience"],
@@ -577,14 +661,32 @@ function buildRecommendationCandidates(
       actionPlan: [
         ...originalProjectActionPlan(profile),
       ],
-      resourceCategories: hasCreativeDirection(profile)
-        ? ["portfolio projects", "writing submissions", "arts competitions"]
+      resourceCategories: hasMedicineDirection(profile)
+        ? ["health project mentors", "public health project ideas", "shadowing and exposure options"]
+        : hasGamingBuilderDirection(profile)
+        ? ["game project templates", "coding portfolio ideas", "youth coding competitions"]
+        : hasCreativeDirection(profile)
+          ? ["portfolio projects", "writing submissions", "arts competitions"]
+        : hasServiceEducationDirection(profile)
+          ? ["mentoring project guides", "tutoring program templates", "community impact tracking"]
+        : isUncertainDirection(profile)
+          ? ["interest exploration projects", "career conversations", "short student programs"]
         : hasBusinessDirection(profile)
           ? ["student venture guides", "business project mentors", "DECA project ideas"]
-        : ["project mentors", "science project guides", "student research journals"],
+        : hasStemDirection(profile) || hasMedicineDirection(profile)
+          ? ["project mentors", "science project guides", "student research journals"]
+          : ["project mentors", "activity exploration guides", "student showcase ideas"],
       gapScore: originalWorkScore,
-      alignmentScore: hasCreativeDirection(profile)
+      alignmentScore: hasMedicineDirection(profile)
         ? 9
+        : hasGamingBuilderDirection(profile)
+        ? 10
+        : hasCreativeDirection(profile)
+          ? 9
+        : hasServiceEducationDirection(profile)
+          ? 9
+        : isUncertainDirection(profile)
+          ? 10
         : hasBusinessDirection(profile)
           ? 9
           : hasStemDirection(profile)
@@ -602,9 +704,11 @@ function buildRecommendationCandidates(
       evidenceUsed: ["Activities", "Community involvement", "Developing leadership evidence"],
       expectedImpact: ["Clarifies ownership", "Shows initiative", "Creates stronger recommendation context"],
       actionPlan: leadershipActionPlan(profile),
-      resourceCategories: ["leadership roles", "community organizations", "school clubs"],
+      resourceCategories: hasServiceEducationDirection(profile)
+        ? ["mentoring programs", "tutoring templates", "community impact trackers"]
+        : ["leadership roles", "community organizations", "school clubs"],
       gapScore: leadershipScore,
-      alignmentScore: hasSportsDirection(profile) || hasBusinessDirection(profile) || hasServiceDirection(profile) ? 9 : 7,
+      alignmentScore: hasSportsDirection(profile) || hasBusinessDirection(profile) || hasServiceDirection(profile) || hasServiceEducationDirection(profile) ? 9 : 7,
       applicationImpactScore: 7,
       actionabilityScore: 8,
       resourceAvailabilityScore: 7,
@@ -752,7 +856,7 @@ function averagePotential(...areas: Array<AtlasRubricArea | undefined>): number 
 
 function hasStemDirection(profile: StudentProfile): boolean {
   const directionText = directionTextFor(profile);
-  return ["stem", "engineering", "coding", "science", "research", "robotics"].some((term) =>
+  return ["stem", "engineering", "coding", "science", "research", "robotics", "software", "game developer", "game design"].some((term) =>
     directionText.includes(term),
   );
 }
@@ -773,7 +877,7 @@ function hasBusinessDirection(profile: StudentProfile): boolean {
 
 function hasCreativeDirection(profile: StudentProfile): boolean {
   const directionText = directionTextFor(profile);
-  return ["writing", "journalism", "newspaper", "theater", "art", "design", "drawing", "media", "creative", "portfolio"].some((term) =>
+  return ["dance", "choreography", "writing", "journalism", "newspaper", "theater", "art", "design", "drawing", "media", "creative", "portfolio"].some((term) =>
     directionText.includes(term),
   );
 }
@@ -790,7 +894,7 @@ function hasArtDirection(profile: StudentProfile): boolean {
 
 function hasPerformingArtsDirection(profile: StudentProfile): boolean {
   const directionText = directionTextFor(profile);
-  return ["theater", "performing", "performance", "music", "dance"].some((term) => directionText.includes(term));
+  return ["dance", "choreography", "theater", "performing", "performance", "music"].some((term) => directionText.includes(term));
 }
 
 function hasLawPolicyDirection(profile: StudentProfile): boolean {
@@ -826,7 +930,11 @@ function hasServiceDirection(profile: StudentProfile): boolean {
 }
 
 function hasAcademicFoundationConstraint(profile: StudentProfile): boolean {
-  return profile.academics.gpa < 3.5 || hasAcademicConcern(profile);
+  return (
+    profile.academics.gpa < 3 ||
+    (profile.academics.gpa < 3.5 && primaryGoal(profile).toLowerCase().includes("improve grades")) ||
+    hasAcademicConcern(profile)
+  );
 }
 
 function hasAcademicConcern(profile: StudentProfile): boolean {
@@ -846,6 +954,60 @@ function shouldRecommendMathPerformance(profile: StudentProfile): boolean {
   );
 }
 
+function isUncertainDirection(profile: StudentProfile): boolean {
+  const directionText = `${profile.futureDirection ?? ""} ${primaryGoal(profile)} ${profile.intent ?? ""} ${profile.interests.join(" ")}`.toLowerCase();
+  const uncertain = ["not sure", "undecided", "find direction", "find a direction", "still exploring"].some((term) =>
+    directionText.includes(term),
+  );
+  const hasSpecificDirection =
+    hasMedicineDirection(profile) ||
+    hasLawPolicyDirection(profile) ||
+    hasBusinessDirection(profile) ||
+    hasCreativeDirection(profile) ||
+    hasStemDirection(profile) ||
+    hasSportsDirection(profile);
+
+  return uncertain && !hasSpecificDirection;
+}
+
+function hasServiceEducationDirection(profile: StudentProfile): boolean {
+  const directionText = directionTextFor(profile);
+  return [
+    "teacher",
+    "teaching",
+    "education",
+    "helping kids",
+    "younger students",
+    "mentor",
+    "mentoring",
+    "tutor",
+    "tutoring",
+    "community impact",
+    "community center",
+    "nonprofit",
+  ].some((term) => directionText.includes(term));
+}
+
+function hasGamingBuilderDirection(profile: StudentProfile): boolean {
+  const directionText = directionTextFor(profile);
+  const tokens = tokenizeDirection(profile);
+  const hasGameSignal = [
+    "gaming",
+    "roblox",
+    "minecraft",
+    "game design",
+    "game developer",
+    "game level",
+    "building games",
+    "small games",
+    "modding",
+  ].some((term) => directionText.includes(term));
+  const hasBuilderSignal = tokens.has("software") || tokens.has("app") || directionText.includes("coding project");
+  const hasEngineeringContext = directionText.includes("engineering") || directionText.includes("robotics");
+
+  return hasGameSignal || (hasBuilderSignal && !hasEngineeringContext);
+}
+
 function tokenizeDirection(profile: StudentProfile) {
   return new Set(
     [...profile.interests, ...profile.goals, profile.notes ?? "", ...profile.activities.map((activity) => activity.name)]
@@ -858,6 +1020,9 @@ function tokenizeDirection(profile: StudentProfile) {
 
 function directionTextFor(profile: StudentProfile) {
   return [
+    profile.futureDirection ?? "",
+    profile.energy ?? "",
+    profile.intent ?? "",
     ...profile.interests,
     ...profile.goals,
     profile.notes ?? "",
@@ -869,6 +1034,15 @@ function directionTextFor(profile: StudentProfile) {
 }
 
 function differentiationArchetypeTitle(profile: StudentProfile): string {
+  if (isUncertainDirection(profile)) {
+    return "Explore One Clear Direction";
+  }
+  if (hasServiceEducationDirection(profile)) {
+    return "Turn Helping Others Into Measurable Impact";
+  }
+  if (hasGamingBuilderDirection(profile)) {
+    return "Turn Gaming Into a Builder Portfolio";
+  }
   if (hasMedicineDirection(profile)) {
     return "Turn Your Health Interest Into Real Exposure";
   }
@@ -904,6 +1078,18 @@ function researchRecommendationTitle(profile: StudentProfile): string {
 }
 
 function originalProjectRecommendationTitle(profile: StudentProfile): string {
+  if (isUncertainDirection(profile)) {
+    return "Test Your Interests Through Small Experiences";
+  }
+  if (hasMedicineDirection(profile)) {
+    return "Turn Your Health Interest Into Real Exposure";
+  }
+  if (hasServiceEducationDirection(profile)) {
+    return "Build a Mentoring or Teaching Initiative";
+  }
+  if (hasGamingBuilderDirection(profile)) {
+    return "Turn Gaming Into a Builder Portfolio";
+  }
   if (hasArtDirection(profile)) {
     return "Build a Portfolio That Shows Your Voice";
   }
@@ -929,6 +1115,9 @@ function originalProjectRecommendationTitle(profile: StudentProfile): string {
 }
 
 function leadershipRecommendationTitle(profile: StudentProfile): string {
+  if (hasServiceEducationDirection(profile)) {
+    return "Turn Helping Others Into Measurable Impact";
+  }
   if (hasMedicineDirection(profile) && profile.service.hours >= 50) {
     return "Turn Service Hours Into Leadership";
   }
@@ -981,9 +1170,9 @@ function goalBoost(category: RecommendationCategory, profile: StudentProfile): n
     [
       goalText.includes("direction") || goalText.includes("not sure"),
       {
-        find_program: 1,
-        pursue_competition: 0.6,
-        build_original_project: 0.4,
+        find_program: 1.2,
+        pursue_competition: 0.7,
+        build_original_project: 2.4,
       },
     ],
     [
@@ -1009,6 +1198,38 @@ function goalBoost(category: RecommendationCategory, profile: StudentProfile): n
 }
 
 function originalProjectActionPlan(profile: StudentProfile): RecommendationAction[] {
+  if (isUncertainDirection(profile)) {
+    return [
+      { title: "Try one short interest project", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Talk to someone in a field that seems interesting", type: "activity", priority: 2, impact: "medium", label: "Explore" },
+      { title: "Join or try one focused activity", type: "activity", priority: 3, impact: "medium", label: "Test it" },
+    ];
+  }
+
+  if (hasMedicineDirection(profile)) {
+    return [
+      { title: "Find one health exposure or shadowing option", type: "activity", priority: 1, impact: "high", label: "Start here" },
+      { title: "Launch a small public health service project", type: "project", priority: 2, impact: "high", label: "Make it real" },
+      { title: "Document what you learned from the experience", type: "document", priority: 3, impact: "medium", label: "Show growth" },
+    ];
+  }
+
+  if (hasGamingBuilderDirection(profile)) {
+    return [
+      { title: "Build one small playable game or coding project", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Document it with screenshots or a short video", type: "document", priority: 2, impact: "high", label: "Make it visible" },
+      { title: "Share it or enter a youth coding competition", type: "activity", priority: 3, impact: "medium", label: "Show it" },
+    ];
+  }
+
+  if (hasServiceEducationDirection(profile)) {
+    return [
+      { title: "Create a small tutoring or mentoring program", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Track who you helped and what improved", type: "document", priority: 2, impact: "high", label: "Show impact" },
+      { title: "Document the project for future applications", type: "document", priority: 3, impact: "medium", label: "Make it real" },
+    ];
+  }
+
   if (hasSportsDirection(profile)) {
     return [
       { title: "Choose one athletics leadership story", type: "project", priority: 1, impact: "high", label: "Start here" },
@@ -1049,10 +1270,18 @@ function originalProjectActionPlan(profile: StudentProfile): RecommendationActio
     ];
   }
 
+  if (hasStemDirection(profile) || hasMedicineDirection(profile)) {
+    return [
+      { title: "Pick one technical or research question", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Find a mentor or teacher reviewer", type: "project", priority: 2, impact: "high", label: "Add support" },
+      { title: "Publish a short project writeup", type: "project", priority: 3, impact: "medium", label: "Make it real" },
+    ];
+  }
+
   return [
-    { title: "Pick one STEM question", type: "project", priority: 1, impact: "high", label: "Start here" },
-    { title: "Find a mentor or teacher reviewer", type: "project", priority: 2, impact: "high", label: "Add support" },
-    { title: "Publish a short project writeup", type: "project", priority: 3, impact: "medium", label: "Make it real" },
+    { title: "Try one short project connected to your interests", type: "project", priority: 1, impact: "high", label: "Start here" },
+    { title: "Ask a teacher or mentor for feedback", type: "activity", priority: 2, impact: "medium", label: "Add support" },
+    { title: "Turn what you learned into a one-page story", type: "document", priority: 3, impact: "medium", label: "Make it real" },
   ];
 }
 
@@ -1070,6 +1299,14 @@ function leadershipActionPlan(profile: StudentProfile): RecommendationAction[] {
       { title: "Lead one DECA or business-club initiative", type: "activity", priority: 1, impact: "high", label: "Start here" },
       { title: "Recruit two classmates into clear roles", type: "activity", priority: 2, impact: "medium", label: "Build ownership" },
       { title: "Track results in a simple project brief", type: "document", priority: 3, impact: "medium", label: "Show impact" },
+    ];
+  }
+
+  if (hasServiceEducationDirection(profile)) {
+    return [
+      { title: "Create a small tutoring or mentoring program", type: "activity", priority: 1, impact: "high", label: "Start here" },
+      { title: "Track who you helped and what improved", type: "document", priority: 2, impact: "medium", label: "Show impact" },
+      { title: "Document the project for future applications", type: "document", priority: 3, impact: "medium", label: "Make it real" },
     ];
   }
 
@@ -1160,11 +1397,11 @@ function generateRecommendationWhyNow(
   const directionInsight = interpretedDirectionInsight(profile);
   const opening = isExploringGoal(profile)
     ? `${studentName} is still exploring ${pronoun(profile, "possessive")} direction`
-    : `${studentName} is focused on ${primaryGoal(profile).toLowerCase()}`;
+    : `${studentName} is focused on ${goalPhrase(primaryGoal(profile))}`;
 
   return [
     `${opening}, but Atlas noticed ${directionInsight}.`,
-    `${sentencePronoun(profile)} already shows meaningful progress through ${strengthsText}.`,
+    `${sentencePronoun(profile)} already ${progressVerb(profile)} meaningful progress through ${strengthsText}.`,
     `The next best move is to create real exposure through ${opportunityText}.`,
   ]
     .filter(Boolean)
@@ -1172,13 +1409,22 @@ function generateRecommendationWhyNow(
 }
 
 function getProfileDirection(profile: StudentProfile): string {
-  const directionText = [...profile.interests, ...profile.goals].join(" ").toLowerCase();
+  const directionText = directionTextFor(profile);
 
-  if (["stem", "engineering", "science", "research", "biology", "medicine"].some((term) => directionText.includes(term))) {
+  if (["medicine", "medical", "doctor", "health", "nursing", "public health"].some((term) => directionText.includes(term))) {
+    return "medicine / health";
+  }
+
+  if (["law", "policy", "debate", "government", "public service"].some((term) => directionText.includes(term))) {
+    return "law / policy";
+  }
+
+  if (["stem", "engineering", "coding", "science", "research", "robotics"].some((term) => directionText.includes(term))) {
     return "STEM-oriented";
   }
 
   if (
+    directionText.includes("dance") ||
     directionText.includes("art") ||
     directionText.includes("design") ||
     directionText.includes("writing") ||
@@ -1196,6 +1442,10 @@ function getProfileDirection(profile: StudentProfile): string {
 }
 
 function primaryGoal(profile: StudentProfile): string {
+  if (profile.intent) {
+    return profile.intent;
+  }
+
   const explicitGoal = profile.goals.find((goal) =>
     !goal.toLowerCase().startsWith("build a stronger story around") &&
     goal !== "Find the next best move" &&
@@ -1205,11 +1455,34 @@ function primaryGoal(profile: StudentProfile): string {
   return explicitGoal ?? profile.goals[0] ?? "find the next best move";
 }
 
+function goalPhrase(goal: string) {
+  const cleaned = goal.trim();
+  const lower = cleaned.toLowerCase();
+  if (lower.startsWith("build ")) {
+    return lower.replace(/^build /, "building ");
+  }
+  if (lower.startsWith("find ")) {
+    return lower.replace(/^find /, "finding ");
+  }
+  if (lower.startsWith("organize ")) {
+    return lower.replace(/^organize /, "organizing ");
+  }
+  if (lower.startsWith("improve ")) {
+    return lower.replace(/^improve /, "improving ");
+  }
+  return lower;
+}
+
 function isExploringGoal(profile: StudentProfile): boolean {
-  return primaryGoal(profile).toLowerCase().includes("not sure");
+  const goal = primaryGoal(profile).toLowerCase();
+  return goal.includes("not sure") || goal.includes("find a direction");
 }
 
 function primaryInterestDirection(profile: StudentProfile): string {
+  if (profile.futureDirection?.trim() && !profile.futureDirection.toLowerCase().includes("not sure")) {
+    return directionLabel(profile.futureDirection);
+  }
+
   const interest = profile.interests.find((item) => item.toLowerCase() !== "undecided");
 
   if (interest) {
@@ -1268,6 +1541,10 @@ function sentencePronoun(profile: StudentProfile) {
   return `${subject.charAt(0).toUpperCase()}${subject.slice(1)}`;
 }
 
+function progressVerb(profile: StudentProfile) {
+  return pronoun(profile, "subject") === "they" ? "show" : "shows";
+}
+
 function directionLabel(direction: string) {
   const lower = direction.toLowerCase();
   if (["medicine", "medical", "health", "biology", "public health"].some((term) => lower.includes(term))) {
@@ -1279,14 +1556,23 @@ function directionLabel(direction: string) {
   if (["art", "design", "drawing"].some((term) => lower.includes(term))) {
     return "Art / Design";
   }
-  if (["writing", "journalism", "newspaper"].some((term) => lower.includes(term))) {
+  if (["writing", "journalism", "newspaper", "reading"].some((term) => lower.includes(term))) {
     return "Writing / Humanities";
   }
   if (["business", "entrepreneur", "deca"].some((term) => lower.includes(term))) {
     return "Business";
   }
+  if (["gaming", "game", "software", "app"].some((term) => lower.includes(term))) {
+    return "Creative / Builder";
+  }
   if (["stem", "coding", "robotics", "engineering"].some((term) => lower.includes(term))) {
     return "STEM / Engineering";
+  }
+  if (["teacher", "education", "tutoring", "mentoring"].some((term) => lower.includes(term))) {
+    return "Education / Service";
+  }
+  if (["dance", "music", "theater", "performance"].some((term) => lower.includes(term))) {
+    return "Creative / Performance";
   }
   if (["sports", "soccer", "track", "basketball"].some((term) => lower.includes(term))) {
     return "Sports / Athletics";
@@ -1297,6 +1583,8 @@ function directionLabel(direction: string) {
 function inferredDirectionLabel(profile: StudentProfile) {
   if (hasMedicineDirection(profile)) return "Medicine / Health";
   if (hasLawPolicyDirection(profile)) return "Law / Policy";
+  if (hasServiceEducationDirection(profile)) return "Education / Service";
+  if (hasGamingBuilderDirection(profile)) return "Creative / Builder";
   if (hasArtDirection(profile)) return "Art / Design";
   if (hasWritingDirection(profile)) return "Writing / Humanities";
   if (hasBusinessDirection(profile)) return "Business";
@@ -1305,18 +1593,40 @@ function inferredDirectionLabel(profile: StudentProfile) {
   return getProfileDirection(profile);
 }
 
+function academicStrengthLabel(profile: StudentProfile) {
+  if (profile.academics.gpa >= 3.8) {
+    return "Mostly A's";
+  }
+  if (profile.academics.gpa >= 3.45) {
+    return "A/B student";
+  }
+  if (profile.academics.gpa >= 3) {
+    return "Mostly B's";
+  }
+  return "Below B's";
+}
+
 function interpretedDirectionInsight(profile: StudentProfile) {
   const inferred = inferredDirectionLabel(profile);
   const selected = profile.interests.find((item) => item.toLowerCase() !== "undecided");
 
   if (selected && directionLabel(selected) !== inferred) {
-    return `a selected interest in ${directionLabel(selected)} and an emerging interest in ${inferred.toLowerCase()}`;
+    return `a selected interest in ${directionLabel(selected)} and an emerging interest in ${inferred}`;
   }
 
-  return `a clear interest in ${inferred.toLowerCase()}`;
+  return `a clear interest in ${inferred}`;
 }
 
 function directionSpecificProofText(profile: StudentProfile) {
+  if (isUncertainDirection(profile)) {
+    return "one small experience that helps test a direction without forcing a career path";
+  }
+  if (hasServiceEducationDirection(profile)) {
+    return "a mentoring, tutoring, or community initiative with clear evidence of who was helped";
+  }
+  if (hasGamingBuilderDirection(profile)) {
+    return "a playable game, coding project, or builder portfolio that shows this interest in action";
+  }
   if (hasMedicineDirection(profile)) {
     return "health exposure, research, shadowing, or a service project that shows this interest in action";
   }
@@ -1332,10 +1642,22 @@ function directionSpecificProofText(profile: StudentProfile) {
   if (hasBusinessDirection(profile)) {
     return "a venture, initiative, competition, or project that shows this interest in action";
   }
+  if (hasStemDirection(profile)) {
+    return "original work, research, or a technical project that shows this interest in action";
+  }
   return "a concrete project, experience, or role that shows this interest in action";
 }
 
 function directionSpecificActionText(profile: StudentProfile) {
+  if (isUncertainDirection(profile)) {
+    return "small exploration experiences";
+  }
+  if (hasServiceEducationDirection(profile)) {
+    return "a mentoring or tutoring initiative with visible impact";
+  }
+  if (hasGamingBuilderDirection(profile)) {
+    return "a game, coding project, or builder portfolio";
+  }
   if (hasMedicineDirection(profile)) {
     return "research, shadowing, service, or a health-related project";
   }
@@ -1350,6 +1672,9 @@ function directionSpecificActionText(profile: StudentProfile) {
   }
   if (hasBusinessDirection(profile)) {
     return "a venture, initiative, competition, or project";
+  }
+  if (hasStemDirection(profile)) {
+    return "original work, research, or a technical project";
   }
   return "a concrete project, experience, or role";
 }
