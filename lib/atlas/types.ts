@@ -28,7 +28,27 @@ export type PrimaryConstraint =
   | "service_impact"
   | "application_readiness"
   | "scholarship_optimization"
-  | "overextension";
+  | "overextension"
+  | "none";
+
+export type DevelopmentNeedId =
+  | "civic_advocacy_proof"
+  | "creative_ownership"
+  | "healthcare_exposure"
+  | "technical_builder_portfolio"
+  | "venture_validation"
+  | "direction_testing"
+  | "service_impact"
+  | "academic_foundation";
+
+export type DevelopmentNeed = {
+  id: DevelopmentNeedId;
+  title: string;
+  description: string;
+  evidence: string[];
+  preferredRecommendationCategories: RecommendationCategory[];
+  actionPlanStyle: string;
+};
 
 export type StudentArchetype = {
   id: string;
@@ -150,6 +170,8 @@ export type AtlasAnalysisResponse = {
   studentName: string;
   profileSummary: string;
   understanding: StudentUnderstanding;
+  constraint: PrimaryConstraint;
+  developmentNeed: DevelopmentNeed;
   rubric: AtlasRubricArea[];
   archetype: StudentArchetype;
   strengths: Array<{

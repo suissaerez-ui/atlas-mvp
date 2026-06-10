@@ -1,6 +1,8 @@
 import type {
   AtlasAnalysisResponse,
   AtlasRubricArea,
+  DevelopmentNeed,
+  PrimaryConstraint,
   Recommendation,
   RecommendationAction,
   RecommendationCategory,
@@ -29,12 +31,14 @@ const guardrails = [
 export function analyzeStudent(profile: StudentProfile): AtlasAnalysisResponse {
   const understanding = buildStudentUnderstanding(profile);
   const rubric = buildRubric(profile);
+  const constraint = identifyConstraint(profile, rubric);
+  const developmentNeed = identifyDevelopmentNeed(profile, rubric);
   const archetype = identifyStudentArchetype(profile, rubric);
-  const candidates = buildRecommendationCandidates(profile, rubric, archetype);
+  const candidates = buildRecommendationCandidates(profile, rubric, archetype, constraint, developmentNeed);
   const rankedRecommendation = rankRecommendations(candidates);
   const nextBestMove = {
     ...rankedRecommendation,
-    whyNow: generateRecommendationWhyNow(profile, rubric, rankedRecommendation),
+    whyNow: generateRecommendationWhyNow(profile, rubric, rankedRecommendation, constraint, developmentNeed),
   };
 
   const strengths = getStrongAreas(rubric)
@@ -55,6 +59,8 @@ export function analyzeStudent(profile: StudentProfile): AtlasAnalysisResponse {
     studentName: displayName(profile.name),
     profileSummary: generateProfileSummary(profile, rubric, nextBestMove),
     understanding,
+    constraint,
+    developmentNeed,
     rubric,
     archetype,
     strengths,
@@ -105,7 +111,7 @@ export function identifyStudentArchetype(
             ? "Protect Your Academic Foundation"
             : "Strengthen Your Math Foundation",
         description:
-          "The student’s biggest opportunity is strengthening academic performance before adding more activities.",
+          "Your biggest opportunity is strengthening academic performance before adding more activities.",
         evidence: academics?.evidence ?? ["Academic foundation needs more evidence"],
         primaryConstraint: "academic_foundation",
         priority: 1,
@@ -120,7 +126,7 @@ export function identifyStudentArchetype(
         id: "course_rigor_constraint",
         title: "Course Rigor Constraint",
         description:
-          "The student has a solid academic foundation but could benefit from more rigorous or better-aligned coursework.",
+          "You have a solid academic foundation and could benefit from more rigorous or better-aligned coursework.",
         evidence: ["Academics are strong", ...(courseRigor?.evidence ?? ["Course rigor needs more evidence"])],
         primaryConstraint: "course_rigor",
         priority: 2,
@@ -133,7 +139,7 @@ export function identifyStudentArchetype(
         id: "direction_clarity_constraint",
         title: "Explore One Clear Direction",
         description:
-          "The student needs a clearer direction so future activities and opportunities tell a stronger story.",
+          "You need a clearer direction so future activities and opportunities tell a stronger story.",
         evidence: profile.interests.length > 0 ? profile.interests : ["Interests are not clear yet"],
         primaryConstraint: "direction_clarity",
         priority: 3,
@@ -147,7 +153,7 @@ export function identifyStudentArchetype(
         id: "service_education_impact_constraint",
         title: "Turn Helping Others Into Measurable Impact",
         description:
-          "The student has a service or education direction and can turn helping others into clearer impact.",
+          "You have a service or education direction and can turn helping others into clearer impact.",
         evidence: [
           "Service or education direction is present",
           ...(service?.evidence ?? ["Service evidence is developing"]),
@@ -167,7 +173,7 @@ export function identifyStudentArchetype(
         id: "application_readiness_constraint",
         title: "Get Your Application Story Ready",
         description:
-          "The student has a strong profile and needs to organize materials, resume, essays, or application assets.",
+          "You have a strong profile and need to organize materials, resume, essays, or application assets.",
         evidence: applicationReadiness?.evidence ?? ["Application materials need organization"],
         primaryConstraint: "application_readiness",
         priority: 3.5,
@@ -184,7 +190,7 @@ export function identifyStudentArchetype(
         id: "health_service_to_leadership",
         title: "Turn Service Hours Into Leadership",
         description:
-          "The student has meaningful health or service involvement and can turn it into clearer ownership.",
+          "You have meaningful health or service involvement and can turn it into clearer ownership.",
         evidence: [
           "Health direction is clear",
           ...(service?.evidence ?? ["Service is present"]),
@@ -201,7 +207,7 @@ export function identifyStudentArchetype(
         id: "gaming_builder_differentiation_constraint",
         title: "Turn Gaming Into a Builder Portfolio",
         description:
-          "The student has gaming or builder energy and can turn it into visible project evidence.",
+          "You have gaming or builder energy and can turn it into visible project evidence.",
         evidence: [
           "Gaming, software, or builder direction is present",
           ...(originalWork?.evidence ?? ["Project evidence can become stronger"]),
@@ -219,7 +225,7 @@ export function identifyStudentArchetype(
         id: "strong_foundation_missing_differentiation",
         title: differentiationArchetypeTitle(profile),
         description:
-          "The student has a strong foundation, but needs stronger proof of original work, research, or distinctive contribution.",
+          "You have a strong foundation, and the next step is building original work, research, or a distinctive contribution.",
         evidence: [
           "Academics are strong",
           ...(activities?.evidence.slice(0, 2) ?? ["Activities are developing"]),
@@ -240,7 +246,7 @@ export function identifyStudentArchetype(
           ? "Strengthen Leadership Through Athletics"
           : "Move From Participant To Leader",
         description:
-          "The student is involved, but needs more ownership, initiative, or measurable influence.",
+          "You're involved, and the next step is more ownership, initiative, or measurable influence.",
         evidence: [
           ...(activities?.evidence.slice(0, 2) ?? ["Activities are present"]),
           ...(leadership?.evidence ?? ["Leadership evidence is limited"]),
@@ -257,7 +263,7 @@ export function identifyStudentArchetype(
         id: "service_impact_constraint",
         title: "Turn Service Into Measurable Impact",
         description:
-          "The student has service involvement, but could turn hours into a more meaningful impact story.",
+          "You have service involvement and can turn those hours into a more meaningful impact story.",
         evidence: [
           ...(service?.evidence ?? ["Service is present"]),
           leadership?.status === "opportunity"
@@ -275,7 +281,7 @@ export function identifyStudentArchetype(
         id: "application_readiness_constraint",
         title: "Get Your Application Story Ready",
         description:
-          "The student needs to organize materials, resume, essays, or application assets.",
+          "You need to organize materials, resume, essays, or application assets.",
         evidence: applicationReadiness?.evidence ?? ["Application materials need organization"],
         primaryConstraint: "application_readiness",
         priority: 7,
@@ -312,7 +318,7 @@ export function generateProfileSummary(
     ? opportunitySummary(profile, topOpportunity, nextBestMove)
     : "the next step is turning your progress into a clearer story";
 
-  return `${displayName(profile.name)} is building a strong ${direction} profile with ${strengthsText}. The clearest growth opportunity is ${opportunityText}.`;
+  return `You're building a ${direction} profile with ${strengthsText}. The next opportunity is ${opportunityText}.`;
 }
 
 export function generateWhyAtlasPickedIt(
@@ -321,31 +327,16 @@ export function generateWhyAtlasPickedIt(
   nextBestMove: Recommendation,
 ): AtlasAnalysisResponse["whyAtlasPickedIt"] {
   const strongAreas = getStrongAreas(rubric).slice(0, 3);
-  const strengths = strongAreas.map((area) => shortAreaLabel(area.name));
+  const strengths = strengthReasoningLines(profile, strongAreas);
   const topOpportunity = getOpportunityAreaForRecommendation(rubric, nextBestMove);
-  const goal = primaryGoal(profile);
-  const direction = primaryInterestDirection(profile);
-  const strongestEvidence = strongAreas[0]?.evidence[0];
-  const directionInsight = interpretedDirectionInsight(profile);
-  const missingProof = topOpportunity
-    ? sentenceCase(opportunitySummary(profile, topOpportunity, nextBestMove))
-    : "A clearer next artifact that shows who you are and what you can do.";
-  const personalContext = [
-    isExploringGoal(profile) ? "Goal: still exploring direction." : `Goal: ${goal}.`,
-    `Direction: ${direction}.`,
-    strongestEvidence ? `Strongest evidence Atlas noticed: ${strongestEvidence}.` : "",
-    `Atlas noticed ${directionInsight}.`,
-    missingProof,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const personalContext = buildConversationalReasoning(profile, topOpportunity, nextBestMove);
 
   return {
     title: "Why this move?",
-    subtitle: "Atlas noticed the pattern.",
-    strengthLabel: "You’re already strong in:",
+    subtitle: "Here’s the pattern I see.",
+    strengthLabel: "What you already have:",
     strengths: strengths.length > 0 ? strengths : nextBestMove.evidenceUsed.slice(0, 3),
-    missingProofLabel: "The missing proof:",
+    missingProofLabel: "What would strengthen your profile:",
     missingProof: personalContext,
   };
 }
@@ -364,6 +355,233 @@ export function getOpportunityAreas(rubric: AtlasRubricArea[]): AtlasRubricArea[
       const aScore = a.importance * 0.55 + a.improvementPotential * 0.45;
       return bScore - aScore;
     });
+}
+
+function strengthReasoningLines(profile: StudentProfile, areas: AtlasRubricArea[]): string[] {
+  return areas.slice(0, 3).map((area) => {
+    if (area.name === "Academics") {
+      return "Your grades show that you can handle challenging work.";
+    }
+    if (area.name === "Course Rigor") {
+      return "Your classes show that you're willing to stretch yourself.";
+    }
+    if (area.name === "Service / Community Impact") {
+      return "You already have real experience helping people around you.";
+    }
+    if (area.name === "Activities") {
+      return "You have interests outside class that can become a stronger story.";
+    }
+    if (area.name === "Interests / Direction") {
+      return isUncertainDirection(profile)
+        ? "You're still figuring out exactly where you want to go, and that's completely normal."
+        : identitySignalSentence(profile);
+    }
+
+    return `${areaSummaryLabel(area)} is already showing up in your profile.`;
+  });
+}
+
+function buildConversationalReasoning(
+  profile: StudentProfile,
+  topOpportunity: AtlasRubricArea | undefined,
+  nextBestMove: Recommendation,
+): string {
+  const constraint = identifyConstraint(profile, buildRubric(profile));
+  const developmentNeed = identifyDevelopmentNeed(profile, buildRubric(profile));
+  return developmentNeedExplanation(profile, constraint, developmentNeed, nextBestMove, topOpportunity);
+}
+
+function conversationalStrengthSummary(profile: StudentProfile): string {
+  if (isUncertainDirection(profile)) {
+    return "You're still figuring out exactly where you want to go, and that's completely normal.";
+  }
+
+  if (profile.academics.gpa >= 3.75 && profile.courseRigor.level === "rigorous") {
+    return "You already have the academic side covered. Your grades and coursework show that you can handle challenging work.";
+  }
+
+  if (profile.academics.gpa >= 3.45) {
+    return "You already have a steady academic foundation to build from.";
+  }
+
+  return "You already have interests and effort showing up in your profile.";
+}
+
+function conversationalGap(
+  profile: StudentProfile,
+  topOpportunity: AtlasRubricArea | undefined,
+  nextBestMove: Recommendation,
+): string {
+  if (nextBestMove.category === "improve_grade") {
+    return "What would help most right now is making your academic foundation feel more stable and less stressful.";
+  }
+
+  if (nextBestMove.category === "increase_course_rigor") {
+    return "What people may not see yet is whether your course plan matches the direction you're starting to care about.";
+  }
+
+  if (nextBestMove.category === "organize_application_materials" || nextBestMove.category === "improve_essay_material") {
+    return "What people may not see yet is the full story behind the work you've already done.";
+  }
+
+  if (topOpportunity?.name === "Leadership") {
+    return "What people may not see yet is where you've taken ownership instead of just participating.";
+  }
+
+  return `What people may not see yet is ${directionSpecificProofText(profile)}.`;
+}
+
+function conversationalRecommendationFit(profile: StudentProfile, nextBestMove: Recommendation): string {
+  if (isUncertainDirection(profile)) {
+    return "That's why this next move is about testing one interest in a small, real way instead of forcing a career choice.";
+  }
+
+  if (nextBestMove.category === "improve_grade") {
+    return "That's why the next move is to get targeted support in the class that matters most right now.";
+  }
+
+  if (nextBestMove.category === "strengthen_leadership") {
+    return "That's why this recommendation focuses on turning what you're already doing into visible ownership.";
+  }
+
+  return `That's why this recommendation points you toward ${directionSpecificActionText(profile)}.`;
+}
+
+function conversationalFutureValue(profile: StudentProfile, nextBestMove: Recommendation): string {
+  if (nextBestMove.category === "improve_grade") {
+    return "That gives you more confidence now and keeps more future options open later.";
+  }
+
+  if (isUncertainDirection(profile)) {
+    return "You'll learn more about yourself, and you'll have something real to point to when new opportunities come up.";
+  }
+
+  return "It helps you grow in a real direction and gives future applications a clearer story to understand.";
+}
+
+function conversationalConstraintText(
+  profile: StudentProfile,
+  constraint: PrimaryConstraint,
+  developmentNeed: DevelopmentNeed,
+): string {
+  if (constraint === "academic_foundation" && developmentNeed.id !== "academic_foundation") {
+    return "The thing that could block progress is your academic foundation, so that needs attention before adding bigger commitments.";
+  }
+
+  if (constraint === "academic_foundation") {
+    return "The thing that could block progress is your academic foundation, so the next move should make school feel more stable.";
+  }
+
+  if (profile.academics.gpa < 3.5 && developmentNeed.id === "technical_builder_portfolio") {
+    return "Your academics are worth supporting, but they are not the reason to pause your builder momentum.";
+  }
+
+  if (constraint === "direction_clarity") {
+    return "The thing that could block progress is not knowing which direction is worth investing in yet.";
+  }
+
+  if (constraint === "service_impact") {
+    return "The thing that could block progress is having helpful work that people cannot yet understand or measure.";
+  }
+
+  if (constraint === "leadership") {
+    return "The thing that could block progress is looking like a participant when you may be ready to own something.";
+  }
+
+  if (constraint === "application_readiness") {
+    return "The thing that could block progress is having good experiences that are not organized into a clear story yet.";
+  }
+
+  return "Nothing here says you need to stop and fix a major blocker first.";
+}
+
+function developmentNeedExplanation(
+  profile: StudentProfile,
+  constraint: PrimaryConstraint,
+  developmentNeed: DevelopmentNeed,
+  nextBestMove: Recommendation,
+  topOpportunity?: AtlasRubricArea,
+): string {
+  if (constraint === "academic_foundation") {
+    return academicConstraintExplanation(profile, developmentNeed);
+  }
+
+  switch (developmentNeed.id) {
+    case "healthcare_exposure":
+      return "Healthcare is hard to understand from the outside. Your interest already has a useful starting point, but the next layer is direct exposure: seeing real settings, real people, and real questions. This recommendation gives you a way to test whether the work feels meaningful before you invest more deeply. It also gives future applications a story about curiosity, service, and follow-through.";
+    case "technical_builder_portfolio":
+      return hasGamingBuilderDirection(profile)
+        ? "Games and software are easiest to believe when someone can try what you made. You do not need a huge app; you need one small build that shows how you think, solve problems, and finish. A playable project creates proof of skill and gives you something concrete to improve, share, or enter into a competition."
+        : "Engineering grows through making, testing, and improving. Your profile already points toward building, but the next step is a prototype or technical artifact that shows your thinking in motion. A focused build makes your interest easier to understand and gives you material for teachers, programs, and future applications.";
+    case "civic_advocacy_proof":
+      return "Law and public service become stronger when your opinions meet real people and real problems. You already have the communication side forming; now the opportunity is to choose an issue, listen carefully, and turn your point of view into useful action. That kind of civic work shows judgment, initiative, and a reason behind your interest.";
+    case "creative_ownership":
+      return hasPerformingArtsDirection(profile)
+        ? "Performance is already part of your life, but ownership is different from participation. The next step is showing your choices: what you created, how you practiced, what changed, and what you want an audience to feel. A portfolio or showcase makes your creative growth visible instead of leaving it hidden in rehearsals."
+        : "Creative work gets stronger when it starts to show a point of view. You have signals of imagination and expression; the next step is shaping those into a body of work that feels intentionally yours. Sharing or submitting that work helps you grow as a creator and gives others a clearer window into your voice.";
+    case "venture_validation":
+      return "Business ideas get real when they meet customers. Your entrepreneurial energy is a good sign, but the next step is testing whether people actually want the thing you might offer. Talking to real users, trying a small sale, or measuring interest teaches more than planning alone and creates a sharper story of initiative.";
+    case "service_impact":
+      return "Helping people already matters in your profile. The next step is making that help easier to see: who you supported, what changed, and what role you played in making it happen. A small mentoring or service initiative can turn kindness into leadership without making the work feel fake or performative.";
+    case "direction_testing":
+      return "Not knowing yet is not a weakness; it just means guessing would be expensive. The best next move is a small experiment that gives you feedback fast: one conversation, one short experience, one reflection on what gave you energy. That helps you choose future activities with more confidence instead of collecting random options.";
+    case "academic_foundation":
+      return "Your interests still matter, but grades are the foundation that keeps more doors open. Strengthening the class or skill that feels least stable will make everything else easier to build on. The goal is not perfection; it is confidence, steadier habits, and enough academic room to pursue opportunities without feeling boxed in.";
+    default:
+      return [
+        conversationalStrengthSummary(profile),
+        conversationalConstraintText(profile, constraint, developmentNeed),
+        conversationalGap(profile, topOpportunity, nextBestMove),
+        conversationalRecommendationFit(profile, nextBestMove),
+        conversationalFutureValue(profile, nextBestMove),
+      ].join(" ");
+  }
+}
+
+function academicConstraintExplanation(
+  profile: StudentProfile,
+  developmentNeed: DevelopmentNeed,
+): string {
+  if (developmentNeed.id === "healthcare_exposure") {
+    return "Healthcare is still a direction worth exploring, but medicine asks a lot from your academic foundation. The smartest move is to stabilize the class or skill that is making school harder while keeping one small health-related activity in the background. That way you protect future options without losing touch with the interest that motivates you.";
+  }
+
+  if (developmentNeed.id === "technical_builder_portfolio") {
+    return "Your builder side is real, and it should not disappear. At the same time, coding and engineering get easier when the academic basics feel steadier. Strengthening the class or skill that is blocking you gives you more confidence, while one small game or coding task keeps your creative momentum alive.";
+  }
+
+  return "Your interests are worth building, but the foundation needs attention first. When grades feel unstable, opportunities can narrow before you get to show what you are capable of. The next move is to get support, rebuild rhythm, and make school feel manageable enough for the rest of your profile to grow.";
+}
+
+function identitySignalSentence(profile: StudentProfile) {
+  if (hasMedicineDirection(profile)) {
+    return "Your profile is starting to point toward health, biology, and helping people.";
+  }
+  if (hasLawPolicyDirection(profile)) {
+    return "Your profile has a clear thread around law, debate, policy, and public service.";
+  }
+  if (hasServiceEducationDirection(profile)) {
+    return "Your profile shows a real pull toward helping, teaching, mentoring, or community work.";
+  }
+  if (hasGamingBuilderDirection(profile)) {
+    return "Your profile has builder energy: games, coding, systems, and things people can use.";
+  }
+  if (hasBusinessDirection(profile)) {
+    return "Your profile points toward business, entrepreneurship, and testing ideas in the real world.";
+  }
+  if (hasPerformingArtsDirection(profile)) {
+    return "Your profile shows creative discipline through performance and expression.";
+  }
+  if (hasArtDirection(profile) || hasWritingDirection(profile)) {
+    return "Your profile shows creative voice and a pull toward sharing ideas.";
+  }
+  if (hasSportsDirection(profile)) {
+    return "Your profile shows discipline, team commitment, and room to lead through athletics.";
+  }
+  if (hasStemDirection(profile)) {
+    return "Your profile points toward STEM, problem-solving, and hands-on building.";
+  }
+  return "Your interests are starting to form a pattern.";
 }
 
 function buildStudentUnderstanding(profile: StudentProfile): StudentUnderstanding {
@@ -397,6 +615,175 @@ function buildStudentUnderstanding(profile: StudentProfile): StudentUnderstandin
       service: profile.service.notes.slice(0, 4),
       projects: profile.projects.map((project) => project.title).slice(0, 5),
     },
+  };
+}
+
+function identifyConstraint(profile: StudentProfile, rubric: AtlasRubricArea[]): PrimaryConstraint {
+  const area = (name: string) => rubric.find((rubricArea) => rubricArea.name === name);
+  const courseRigor = area("Course Rigor");
+  const leadership = area("Leadership");
+  const service = area("Service / Community Impact");
+  const applicationReadiness = area("Application Readiness");
+
+  if (hasSevereAcademicConstraint(profile)) {
+    return "academic_foundation";
+  }
+
+  if (isUncertainDirection(profile)) {
+    return "direction_clarity";
+  }
+
+  if (profile.academics.gpa >= 3.8 && isDevelopingOrOpportunity(courseRigor) && courseRigor?.status === "opportunity") {
+    return "course_rigor";
+  }
+
+  if (hasServiceEducationDirection(profile) && service?.status !== "opportunity") {
+    return "service_impact";
+  }
+
+  if ((hasBusinessDirection(profile) || hasSportsDirection(profile)) && leadership?.status === "opportunity") {
+    return "leadership";
+  }
+
+  if ((profile.grade === 11 || profile.grade === 12) && isDevelopingOrOpportunity(applicationReadiness) && profile.projects.length > 0) {
+    return "application_readiness";
+  }
+
+  return "none";
+}
+
+function identifyDevelopmentNeed(profile: StudentProfile, rubric: AtlasRubricArea[]): DevelopmentNeed {
+  if (isUncertainDirection(profile)) {
+    return developmentNeed("direction_testing", [
+      profile.futureDirection ?? "Direction is still forming",
+      primaryGoal(profile),
+    ]);
+  }
+
+  if (hasLawPolicyDirection(profile)) {
+    return developmentNeed("civic_advocacy_proof", profile.interests);
+  }
+
+  if (hasMedicineDirection(profile)) {
+    return developmentNeed("healthcare_exposure", [
+      profile.futureDirection ?? "Health direction",
+      ...profile.service.notes,
+    ]);
+  }
+
+  if (hasServiceEducationDirection(profile)) {
+    return developmentNeed("service_impact", [
+      profile.futureDirection ?? "Service direction",
+      ...profile.service.notes,
+    ]);
+  }
+
+  if (hasGamingBuilderDirection(profile) || hasStemDirection(profile)) {
+    return developmentNeed("technical_builder_portfolio", [
+      profile.futureDirection ?? "Technical direction",
+      profile.energy ?? "",
+      ...profile.activities.map((activity) => activity.name),
+    ]);
+  }
+
+  if (hasBusinessDirection(profile)) {
+    return developmentNeed("venture_validation", [
+      profile.futureDirection ?? "Business direction",
+      profile.energy ?? "",
+      ...profile.activities.map((activity) => activity.name),
+    ]);
+  }
+
+  if (hasCreativeDirection(profile)) {
+    return developmentNeed("creative_ownership", [
+      profile.futureDirection ?? "Creative direction",
+      profile.energy ?? "",
+      ...profile.projects.map((project) => project.title),
+    ]);
+  }
+
+  if (hasSevereAcademicConstraint(profile)) {
+    return developmentNeed("academic_foundation", [
+      `${profile.academics.gpa.toFixed(2)} GPA`,
+      ...profile.academics.notes,
+    ]);
+  }
+
+  const topOpportunity = getOpportunityAreas(rubric)[0];
+  return developmentNeed("direction_testing", topOpportunity?.evidence ?? ["A clearer direction would help"]);
+}
+
+function developmentNeed(id: DevelopmentNeed["id"], evidence: string[]): DevelopmentNeed {
+  const needs: Record<DevelopmentNeed["id"], Omit<DevelopmentNeed, "evidence">> = {
+    civic_advocacy_proof: {
+      id: "civic_advocacy_proof",
+      title: "Civic advocacy proof",
+      description:
+        "Prove your interest through advocacy, civic work, debate leadership, policy writing, public service, or local issue work.",
+      preferredRecommendationCategories: ["build_original_project", "strengthen_leadership"],
+      actionPlanStyle: "civic_issue_to_public_solution",
+    },
+    creative_ownership: {
+      id: "creative_ownership",
+      title: "Creative ownership",
+      description:
+        "Show creative ownership through choreography, portfolio work, showcase, mentoring, performance leadership, or submitted creative work.",
+      preferredRecommendationCategories: ["build_original_project", "pursue_competition"],
+      actionPlanStyle: "creative_portfolio_or_showcase",
+    },
+    healthcare_exposure: {
+      id: "healthcare_exposure",
+      title: "Healthcare exposure",
+      description:
+        "Test healthcare interest through shadowing, volunteering, public health, research exposure, or health-related service.",
+      preferredRecommendationCategories: ["gain_research_experience", "build_original_project", "find_program"],
+      actionPlanStyle: "health_exposure_plus_reflection",
+    },
+    technical_builder_portfolio: {
+      id: "technical_builder_portfolio",
+      title: "Technical builder portfolio",
+      description:
+        "Build technical proof through apps, robotics, games, coding portfolio, competitions, or maker projects.",
+      preferredRecommendationCategories: ["build_original_project", "pursue_competition"],
+      actionPlanStyle: "technical_build_portfolio",
+    },
+    venture_validation: {
+      id: "venture_validation",
+      title: "Venture validation",
+      description:
+        "Test initiative through selling, customer discovery, a small venture, DECA, market validation, or a measurable business project.",
+      preferredRecommendationCategories: ["build_original_project", "strengthen_leadership"],
+      actionPlanStyle: "venture_customer_validation",
+    },
+    direction_testing: {
+      id: "direction_testing",
+      title: "Direction testing",
+      description:
+        "Explore possible directions through low-risk experiences, short projects, conversations, and focused experiments.",
+      preferredRecommendationCategories: ["build_original_project", "find_program"],
+      actionPlanStyle: "low_risk_interest_tests",
+    },
+    service_impact: {
+      id: "service_impact",
+      title: "Service impact",
+      description:
+        "Turn helping into measurable impact through tutoring, mentoring, organizing, or community leadership.",
+      preferredRecommendationCategories: ["strengthen_leadership", "deepen_service_impact", "build_original_project"],
+      actionPlanStyle: "measurable_service_initiative",
+    },
+    academic_foundation: {
+      id: "academic_foundation",
+      title: "Academic foundation",
+      description:
+        "Improve grades, study systems, course support, tutoring, teacher help, and academic confidence.",
+      preferredRecommendationCategories: ["improve_grade", "find_tutor"],
+      actionPlanStyle: "academic_stability_first",
+    },
+  };
+
+  return {
+    ...needs[id],
+    evidence: evidence.filter(Boolean),
   };
 }
 
@@ -436,7 +823,7 @@ function fallbackArchetype(
       id: "application_readiness_constraint",
       title: "Get Your Application Story Ready",
       description:
-        "The student needs to organize materials, resume, essays, or application assets.",
+        "You need to organize materials, resume, essays, or application assets.",
       evidence: topOpportunity?.evidence ?? [`${displayName(profile.name)} has a strong base and needs a clearer next step`],
       primaryConstraint: "application_readiness",
       priority: 7,
@@ -486,9 +873,51 @@ function archetypeBoost(
     overextension: {
       organize_application_materials: 1.5,
     },
+    none: {},
   };
 
   return boosts[archetype.primaryConstraint][category] ?? 0;
+}
+
+function developmentNeedBoost(
+  category: RecommendationCategory,
+  developmentNeed: DevelopmentNeed,
+  constraint: PrimaryConstraint,
+): number {
+  if (constraint === "academic_foundation") {
+    return developmentNeed.id === "academic_foundation" && category === "improve_grade" ? 6 : 0;
+  }
+
+  const baseBoost = developmentNeed.preferredRecommendationCategories.includes(category) ? 4 : 0;
+  const specificBoosts: Partial<Record<DevelopmentNeed["id"], Partial<Record<RecommendationCategory, number>>>> = {
+    civic_advocacy_proof: { build_original_project: 2, strengthen_leadership: 1 },
+    creative_ownership: { build_original_project: 2 },
+    healthcare_exposure: { gain_research_experience: 2, build_original_project: 1.5 },
+    technical_builder_portfolio: { build_original_project: 3, pursue_competition: 1 },
+    venture_validation: { build_original_project: 3, strengthen_leadership: 1 },
+    direction_testing: { build_original_project: 2 },
+    service_impact: { strengthen_leadership: 2, deepen_service_impact: 2 },
+    academic_foundation: { improve_grade: 4, find_tutor: 3 },
+  };
+
+  return baseBoost + (specificBoosts[developmentNeed.id]?.[category] ?? 0);
+}
+
+function constraintBoost(category: RecommendationCategory, constraint: PrimaryConstraint): number {
+  const boosts: Partial<Record<PrimaryConstraint, Partial<Record<RecommendationCategory, number>>>> = {
+    academic_foundation: { improve_grade: 10, find_tutor: 8 },
+    course_rigor: { increase_course_rigor: 4 },
+    direction_clarity: { build_original_project: 3, find_program: 2 },
+    leadership: { strengthen_leadership: 4 },
+    service_impact: { strengthen_leadership: 3, deepen_service_impact: 3, build_original_project: 1 },
+    application_readiness: { organize_application_materials: 4, improve_essay_material: 3, create_resume: 3 },
+    differentiation: { build_original_project: 2, gain_research_experience: 2 },
+    scholarship_optimization: { find_scholarships: 3 },
+    overextension: { organize_application_materials: 2 },
+    none: {},
+  };
+
+  return boosts[constraint]?.[category] ?? 0;
 }
 
 function buildRubric(profile: StudentProfile): AtlasRubricArea[] {
@@ -601,6 +1030,8 @@ function buildRecommendationCandidates(
   profile: StudentProfile,
   rubric: AtlasRubricArea[],
   archetype: StudentArchetype,
+  constraint: PrimaryConstraint,
+  developmentNeed: DevelopmentNeed,
 ): CandidateRecommendation[] {
   const area = (name: string) => rubric.find((rubricArea) => rubricArea.name === name);
   const originalWorkGap = area("Original Work / Projects / Research");
@@ -640,7 +1071,7 @@ function buildRecommendationCandidates(
       resourceAvailabilityScore: 8,
     }),
     makeCandidate({
-      title: originalProjectRecommendationTitle(profile),
+      title: originalProjectRecommendationTitle(profile, developmentNeed),
       category: "build_original_project",
       confidence: "medium",
       whyNow: "",
@@ -659,7 +1090,7 @@ function buildRecommendationCandidates(
         : ["STEM interests", "Limited original work", "Science fair experience"],
       expectedImpact: ["Creates tangible evidence", "Builds essay material", "Shows initiative"],
       actionPlan: [
-        ...originalProjectActionPlan(profile),
+        ...developmentActionPlan(profile, developmentNeed),
       ],
       resourceCategories: hasMedicineDirection(profile)
         ? ["health project mentors", "public health project ideas", "shadowing and exposure options"]
@@ -677,7 +1108,9 @@ function buildRecommendationCandidates(
           ? ["project mentors", "science project guides", "student research journals"]
           : ["project mentors", "activity exploration guides", "student showcase ideas"],
       gapScore: originalWorkScore,
-      alignmentScore: hasMedicineDirection(profile)
+      alignmentScore: developmentNeed.id === "technical_builder_portfolio"
+        ? 11
+        : hasMedicineDirection(profile)
         ? 9
         : hasGamingBuilderDirection(profile)
         ? 10
@@ -722,7 +1155,7 @@ function buildRecommendationCandidates(
       expectedImpact: ["Sharpens the student story", "Improves readiness", "Makes strong work easier to understand"],
       actionPlan: [
         { title: "Revise the personal statement", type: "essay", priority: 1, impact: "high", label: "Start here" },
-        { title: "Match resume bullets to the strongest story", type: "document", priority: 2, impact: "high", label: "Tighten proof" },
+        { title: "Match resume bullets to the story you want people to remember", type: "document", priority: 2, impact: "high", label: "Make it clear" },
         { title: "Prepare scholarship-ready short answers", type: "essay", priority: 3, impact: "medium", label: "Reuse later" },
       ],
       resourceCategories: ["essay review", "resume polish", "scholarship essays"],
@@ -797,9 +1230,9 @@ function buildRecommendationCandidates(
         "If a core STEM grade slips, improving it can be the most important next move.",
       evidenceUsed: academics?.evidence ?? ["Academic evidence unknown"],
       expectedImpact: ["Protects academic foundation", "Improves confidence"],
-      actionPlan: academicActionPlan(mathRecommendation),
+      actionPlan: academicOverrideActionPlan(profile, developmentNeed, mathRecommendation),
       resourceCategories: ["math tutors", "teacher office hours", "practice plans"],
-      gapScore: academicConstraint ? academics?.improvementPotential ?? 8 : 3,
+      gapScore: academicConstraint ? academics?.improvementPotential ?? 8 : 2,
       alignmentScore: mathRecommendation ? 8 : 6,
       applicationImpactScore: 8,
       actionabilityScore: 9,
@@ -810,7 +1243,10 @@ function buildRecommendationCandidates(
   return candidates.map((candidate) => ({
     ...candidate,
     archetypeBoostScore: archetypeBoost(candidate.category, archetype),
-    goalBoostScore: goalBoost(candidate.category, profile),
+    goalBoostScore:
+      goalBoost(candidate.category, profile) +
+      constraintBoost(candidate.category, constraint) +
+      developmentNeedBoost(candidate.category, developmentNeed, constraint),
   }));
 }
 
@@ -930,6 +1366,10 @@ function hasServiceDirection(profile: StudentProfile): boolean {
 }
 
 function hasAcademicFoundationConstraint(profile: StudentProfile): boolean {
+  return hasSevereAcademicConstraint(profile);
+}
+
+function hasSevereAcademicConstraint(profile: StudentProfile): boolean {
   return (
     profile.academics.gpa < 3 ||
     (profile.academics.gpa < 3.5 && primaryGoal(profile).toLowerCase().includes("improve grades")) ||
@@ -1038,80 +1478,103 @@ function differentiationArchetypeTitle(profile: StudentProfile): string {
     return "Explore One Clear Direction";
   }
   if (hasServiceEducationDirection(profile)) {
-    return "Turn Helping Others Into Measurable Impact";
+    return "Turn Helping Others Into Real Impact";
   }
   if (hasGamingBuilderDirection(profile)) {
-    return "Turn Gaming Into a Builder Portfolio";
+    return "Build a Game or Coding Project You Can Show";
   }
   if (hasMedicineDirection(profile)) {
-    return "Turn Your Health Interest Into Real Exposure";
+    return "Explore This Interest In Real Life";
   }
   if (hasBusinessDirection(profile)) {
-    return "Build Something That Shows Initiative";
+    return "Build Something You Can Point To";
   }
   if (hasArtDirection(profile)) {
     return "Build a Portfolio That Shows Your Voice";
   }
   if (hasWritingDirection(profile)) {
-    return "Turn Your Writing Into Visible Work";
+    return "Share Your Ideas Where People Can See Them";
   }
   if (hasPerformingArtsDirection(profile)) {
-    return "Create Proof of Your Performance Growth";
+    return "Create A Performance Portfolio";
   }
   if (hasLawPolicyDirection(profile)) {
-    return "Turn Your Policy Interest Into Civic Impact";
+    return "Take Your Civic Interest Beyond The Classroom";
   }
   if (hasSportsDirection(profile)) {
-    return "Strengthen Leadership Through Athletics";
+    return "Use Your Team Experience To Lead";
   }
   if (hasStemDirection(profile)) {
-    return "Turn Your STEM Interest Into Original Work";
+    return "Build Something You Can Point To";
   }
-  return "Strong Foundation, Missing Differentiation";
+  return "Show What You Care About";
 }
 
 function researchRecommendationTitle(profile: StudentProfile): string {
   if (hasMedicineDirection(profile)) {
-    return "Turn Your Health Interest Into Real Exposure";
+    return "Explore This Interest In Real Life";
   }
-  return "Turn Your STEM Interest Into Original Work";
+  return "Build Something You Can Point To";
 }
 
-function originalProjectRecommendationTitle(profile: StudentProfile): string {
+function originalProjectRecommendationTitle(profile: StudentProfile, developmentNeed?: DevelopmentNeed): string {
+  if (developmentNeed?.id === "civic_advocacy_proof") {
+    return "Take Your Civic Interest Beyond The Classroom";
+  }
+  if (developmentNeed?.id === "creative_ownership") {
+    return hasPerformingArtsDirection(profile) ? "Create A Performance Portfolio" : "Build a Portfolio That Shows Your Voice";
+  }
+  if (developmentNeed?.id === "healthcare_exposure") {
+    return "Explore Healthcare In Real Life";
+  }
+  if (developmentNeed?.id === "technical_builder_portfolio") {
+    return hasGamingBuilderDirection(profile)
+      ? "Build a Game or Coding Project You Can Show"
+      : "Build a Technical Project You Can Show";
+  }
+  if (developmentNeed?.id === "venture_validation") {
+    return "Test a Venture With Real People";
+  }
+  if (developmentNeed?.id === "direction_testing") {
+    return "Test Your Interests Through Small Experiences";
+  }
+  if (developmentNeed?.id === "service_impact") {
+    return "Build a Mentoring or Teaching Initiative";
+  }
   if (isUncertainDirection(profile)) {
     return "Test Your Interests Through Small Experiences";
   }
   if (hasMedicineDirection(profile)) {
-    return "Turn Your Health Interest Into Real Exposure";
+    return "Explore This Interest In Real Life";
   }
   if (hasServiceEducationDirection(profile)) {
     return "Build a Mentoring or Teaching Initiative";
   }
   if (hasGamingBuilderDirection(profile)) {
-    return "Turn Gaming Into a Builder Portfolio";
+    return "Build a Game or Coding Project You Can Show";
   }
   if (hasArtDirection(profile)) {
     return "Build a Portfolio That Shows Your Voice";
   }
   if (hasWritingDirection(profile)) {
-    return "Turn Your Writing Into Visible Work";
+    return "Share Your Ideas Where People Can See Them";
   }
   if (hasPerformingArtsDirection(profile)) {
-    return "Create Proof of Your Performance Growth";
+    return "Create A Performance Portfolio";
   }
   if (hasLawPolicyDirection(profile)) {
-    return "Turn Your Policy Interest Into Civic Impact";
+    return "Take Your Civic Interest Beyond The Classroom";
   }
   if (hasSportsDirection(profile)) {
-    return "Strengthen Leadership Through Athletics";
+    return "Use Your Team Experience To Lead";
   }
   if (hasBusinessDirection(profile)) {
-    return "Build Something That Shows Initiative";
+    return "Build Something You Can Point To";
   }
   if (hasStemDirection(profile)) {
-    return "Turn Your STEM Interest Into Original Work";
+    return "Build Something You Can Point To";
   }
-  return "Build Something That Shows Initiative";
+  return "Show What You Care About";
 }
 
 function leadershipRecommendationTitle(profile: StudentProfile): string {
@@ -1197,6 +1660,86 @@ function goalBoost(category: RecommendationCategory, profile: StudentProfile): n
   }, 0);
 }
 
+function developmentActionPlan(
+  profile: StudentProfile,
+  developmentNeed: DevelopmentNeed,
+): RecommendationAction[] {
+  if (developmentNeed.id === "academic_foundation") {
+    return academicActionPlan(shouldRecommendMathPerformance(profile));
+  }
+
+  if (developmentNeed.id === "civic_advocacy_proof") {
+    return [
+      { title: "Pick one issue you actually care about", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Talk to five students, teachers, or community members", type: "activity", priority: 2, impact: "medium", label: "Listen first" },
+      { title: "Write one page with the problem, what you learned, and one possible solution", type: "document", priority: 3, impact: "medium", label: "Make it clear" },
+      { title: "Share it with debate, student government, a teacher, or the school paper", type: "activity", priority: 4, impact: "medium", label: "Put it out there" },
+    ];
+  }
+
+  if (developmentNeed.id === "creative_ownership") {
+    return hasPerformingArtsDirection(profile)
+      ? [
+          { title: "Choose one piece or performance that shows your point of view", type: "project", priority: 1, impact: "high", label: "Start here" },
+          { title: "Record clips, rehearsal notes, or choreography choices", type: "document", priority: 2, impact: "medium", label: "Show process" },
+          { title: "Pursue one showcase, lead role, class performance, or mentor moment", type: "activity", priority: 3, impact: "high", label: "Make it visible" },
+        ]
+      : [
+          { title: "Choose one portfolio theme that feels personal", type: "project", priority: 1, impact: "high", label: "Start here" },
+          { title: "Polish three pieces that show your voice", type: "project", priority: 2, impact: "high", label: "Make it real" },
+          { title: "Submit or share the work with a real audience", type: "activity", priority: 3, impact: "medium", label: "Put it out there" },
+        ];
+  }
+
+  if (developmentNeed.id === "healthcare_exposure") {
+    return [
+      { title: "Find one health exposure, shadowing, or hospital volunteer option", type: "activity", priority: 1, impact: "high", label: "Start here" },
+      { title: "Choose one public health question you care about", type: "project", priority: 2, impact: "high", label: "Go deeper" },
+      { title: "Document what you learned and what surprised you", type: "document", priority: 3, impact: "medium", label: "Reflect" },
+    ];
+  }
+
+  if (developmentNeed.id === "technical_builder_portfolio") {
+    return hasGamingBuilderDirection(profile)
+      ? [
+          { title: "Build one small playable game with a clear goal and win condition", type: "project", priority: 1, impact: "high", label: "Start here" },
+          { title: "Record a 30-second gameplay demo and three screenshots", type: "document", priority: 2, impact: "high", label: "Make it visible" },
+          { title: "Share it on a portfolio page, GitHub, itch.io, or a youth game competition", type: "activity", priority: 3, impact: "medium", label: "Show it" },
+        ]
+      : [
+          { title: "Build one small robotics, engineering, or maker prototype", type: "project", priority: 1, impact: "high", label: "Start here" },
+          { title: "Test it, measure what changed, and write down one improvement", type: "document", priority: 2, impact: "high", label: "Think like an engineer" },
+          { title: "Show the build log to a robotics coach, STEM teacher, or hackathon mentor", type: "activity", priority: 3, impact: "medium", label: "Get feedback" },
+        ];
+  }
+
+  if (developmentNeed.id === "venture_validation") {
+    return [
+      { title: "Pick one small venture idea you could test this month", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Ask five potential customers what they would actually use or buy", type: "activity", priority: 2, impact: "high", label: "Validate" },
+      { title: "Track what people said, what changed, and what you would try next", type: "document", priority: 3, impact: "medium", label: "Show learning" },
+    ];
+  }
+
+  if (developmentNeed.id === "direction_testing") {
+    return [
+      { title: "Try one short experience in a direction that seems interesting", type: "activity", priority: 1, impact: "high", label: "Start here" },
+      { title: "Talk to someone who has done that kind of work", type: "activity", priority: 2, impact: "medium", label: "Learn fast" },
+      { title: "Write down what gave you energy and what did not", type: "document", priority: 3, impact: "medium", label: "Reflect" },
+    ];
+  }
+
+  if (developmentNeed.id === "service_impact") {
+    return [
+      { title: "Create a small tutoring, mentoring, or community help plan", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Track who you helped and what improved", type: "document", priority: 2, impact: "high", label: "Measure" },
+      { title: "Ask one adult or organization how you could make it more useful", type: "activity", priority: 3, impact: "medium", label: "Deepen it" },
+    ];
+  }
+
+  return originalProjectActionPlan(profile);
+}
+
 function originalProjectActionPlan(profile: StudentProfile): RecommendationAction[] {
   if (isUncertainDirection(profile)) {
     return [
@@ -1248,9 +1791,10 @@ function originalProjectActionPlan(profile: StudentProfile): RecommendationActio
 
   if (hasLawPolicyDirection(profile)) {
     return [
-      { title: "Choose one civic issue", type: "project", priority: 1, impact: "high", label: "Start here" },
-      { title: "Interview or survey people affected", type: "activity", priority: 2, impact: "medium", label: "Find proof" },
-      { title: "Publish a short policy brief", type: "document", priority: 3, impact: "medium", label: "Share it" },
+      { title: "Pick one issue you actually care about", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Talk to five students, teachers, or community members", type: "activity", priority: 2, impact: "medium", label: "Listen first" },
+      { title: "Write one page with the problem, what you learned, and one possible solution", type: "document", priority: 3, impact: "medium", label: "Make it clear" },
+      { title: "Share it with a teacher, club, school paper, or portfolio", type: "activity", priority: 4, impact: "medium", label: "Put it out there" },
     ];
   }
 
@@ -1272,9 +1816,9 @@ function originalProjectActionPlan(profile: StudentProfile): RecommendationActio
 
   if (hasStemDirection(profile) || hasMedicineDirection(profile)) {
     return [
-      { title: "Pick one technical or research question", type: "project", priority: 1, impact: "high", label: "Start here" },
-      { title: "Find a mentor or teacher reviewer", type: "project", priority: 2, impact: "high", label: "Add support" },
-      { title: "Publish a short project writeup", type: "project", priority: 3, impact: "medium", label: "Make it real" },
+      { title: "Pick one question or problem you would actually enjoy exploring", type: "project", priority: 1, impact: "high", label: "Start here" },
+      { title: "Ask one teacher, mentor, or older student for feedback", type: "activity", priority: 2, impact: "high", label: "Add support" },
+      { title: "Make a short page with what you tried, learned, and would do next", type: "document", priority: 3, impact: "medium", label: "Make it real" },
     ];
   }
 
@@ -1341,6 +1885,38 @@ function academicActionPlan(mathRecommendation: boolean): RecommendationAction[]
   ];
 }
 
+function academicOverrideActionPlan(
+  profile: StudentProfile,
+  developmentNeed: DevelopmentNeed,
+  mathRecommendation: boolean,
+): RecommendationAction[] {
+  if (developmentNeed.id === "healthcare_exposure") {
+    return [
+      { title: "Identify the science or math unit making health classes harder", type: "course", priority: 1, impact: "high", label: "Start here" },
+      { title: "Ask your teacher for one targeted recovery plan", type: "activity", priority: 2, impact: "high", label: "Get support" },
+      { title: "Keep one small healthcare exposure activity in the background", type: "activity", priority: 3, impact: "medium", label: "Stay connected" },
+    ];
+  }
+
+  if (developmentNeed.id === "technical_builder_portfolio") {
+    return [
+      { title: "Pick the math or computer science skill blocking your builds", type: "course", priority: 1, impact: "high", label: "Start here" },
+      { title: "Set a two-week practice plan tied to one small game or coding task", type: "document", priority: 2, impact: "high", label: "Build rhythm" },
+      { title: "Ask a teacher, tutor, or coding mentor to review one stuck point", type: "tutor", priority: 3, impact: "medium", label: "Get unstuck" },
+    ];
+  }
+
+  if (developmentNeed.id === "venture_validation") {
+    return [
+      { title: "Name the class most likely to limit future business options", type: "course", priority: 1, impact: "high", label: "Start here" },
+      { title: "Create a two-week grade recovery plan", type: "document", priority: 2, impact: "high", label: "Stabilize" },
+      { title: "Keep one tiny customer interview or selling test in the background", type: "activity", priority: 3, impact: "medium", label: "Stay curious" },
+    ];
+  }
+
+  return academicActionPlan(mathRecommendation);
+}
+
 function researchActionPlan(): RecommendationAction[] {
   return [
     {
@@ -1384,28 +1960,57 @@ function generateRecommendationWhyNow(
   profile: StudentProfile,
   rubric: AtlasRubricArea[],
   nextBestMove: Recommendation,
+  constraint: PrimaryConstraint,
+  developmentNeed: DevelopmentNeed,
 ): string {
-  const strongAreas = getStrongAreas(rubric).slice(0, 3);
-  const strengths = strongAreas.map((area) => shortAreaLabel(area.name).toLowerCase());
-  const topOpportunity = getOpportunityAreaForRecommendation(rubric, nextBestMove);
-  const strengthsText = strengths.length > 0 ? formatList(strengths) : "meaningful progress";
-  const opportunityText = topOpportunity
-    ? shortOpportunitySummary(profile, topOpportunity, nextBestMove)
-    : "a clearer next step that turns progress into proof";
-  const studentName = displayName(profile.name);
-  const direction = primaryInterestDirection(profile);
-  const directionInsight = interpretedDirectionInsight(profile);
-  const opening = isExploringGoal(profile)
-    ? `${studentName} is still exploring ${pronoun(profile, "possessive")} direction`
-    : `${studentName} is focused on ${goalPhrase(primaryGoal(profile))}`;
+  if (constraint === "academic_foundation" && developmentNeed.id !== "academic_foundation") {
+    return academicConstraintWhyNow(profile, developmentNeed);
+  }
 
-  return [
-    `${opening}, but Atlas noticed ${directionInsight}.`,
-    `${sentencePronoun(profile)} already ${progressVerb(profile)} meaningful progress through ${strengthsText}.`,
-    `The next best move is to create real exposure through ${opportunityText}.`,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  if (constraint === "academic_foundation") {
+    return "Your next move is about fundamentals. When a class or study rhythm feels shaky, strengthening it keeps more doors open and makes every future opportunity easier to reach.";
+  }
+
+  return developmentNeedWhyNow(profile, developmentNeed);
+}
+
+function developmentNeedWhyNow(profile: StudentProfile, developmentNeed: DevelopmentNeed): string {
+  switch (developmentNeed.id) {
+    case "healthcare_exposure":
+      return "Healthcare gets clearer when you see it up close. A shadowing, service, research, or public health experience can help you test the interest before you commit more deeply.";
+    case "technical_builder_portfolio":
+      return hasGamingBuilderDirection(profile)
+        ? "A game or coding build can show how you think in a way a club name cannot. One small finished project is enough to start building a real portfolio."
+        : "Engineering is easier to believe when there is a build people can inspect. A small prototype or technical project can show your problem-solving in motion.";
+    case "civic_advocacy_proof":
+      return "Law and policy become more meaningful when you move from having opinions to taking action on an issue. A civic project gives your interest a real-world shape.";
+    case "creative_ownership":
+      return hasPerformingArtsDirection(profile)
+        ? "Your performance work can say more when it shows your choices, growth, and point of view. A portfolio or showcase helps others see the creator behind the activity."
+        : "Creative interests get stronger when they become a body of work. Building and sharing a portfolio gives your voice somewhere to live.";
+    case "venture_validation":
+      return "An idea becomes more powerful when real people react to it. Testing a small venture teaches you what customers want and shows initiative with evidence behind it.";
+    case "service_impact":
+      return "Your helping work can become more powerful when the impact is visible. A small mentoring or service initiative can show who you helped and what changed.";
+    case "direction_testing":
+      return "You do not need to choose your whole future right now. A small experiment can show what gives you energy and what is worth exploring next.";
+    case "academic_foundation":
+      return "Strengthening your academic foundation keeps more future options open. The goal is confidence and stability, not perfection.";
+    default:
+      return "The next move should help you grow in a direction that fits your interests and opens more future options.";
+  }
+}
+
+function academicConstraintWhyNow(profile: StudentProfile, developmentNeed: DevelopmentNeed): string {
+  if (developmentNeed.id === "healthcare_exposure") {
+    return "Healthcare is still worth exploring, but medicine depends on a steady academic base. Strengthening your grades first protects that path while you keep one small health exposure in the background.";
+  }
+
+  if (developmentNeed.id === "technical_builder_portfolio") {
+    return "Your coding or builder interest still matters. The priority is stabilizing the academic skill that could hold you back, while keeping one small build alive so you do not lose momentum.";
+  }
+
+  return "Your interests are still part of the plan. The priority is making school feel steadier first, because a stronger academic base keeps more future doors open.";
 }
 
 function getProfileDirection(profile: StudentProfile): string {
@@ -1615,6 +2220,37 @@ function interpretedDirectionInsight(profile: StudentProfile) {
   }
 
   return `a clear interest in ${inferred}`;
+}
+
+function secondPersonDirectionSignal(profile: StudentProfile) {
+  if (hasMedicineDirection(profile)) {
+    return "Your profile points toward health, biology, or helping people through medicine.";
+  }
+  if (hasLawPolicyDirection(profile)) {
+    return "Your profile has a clear thread around law, policy, debate, or public service.";
+  }
+  if (hasServiceEducationDirection(profile)) {
+    return "Your profile shows a pull toward helping, teaching, mentoring, or serving your community.";
+  }
+  if (hasGamingBuilderDirection(profile)) {
+    return "Your profile shows builder energy through games, coding, and things people can use.";
+  }
+  if (hasBusinessDirection(profile)) {
+    return "Your profile points toward business, entrepreneurship, and making ideas real.";
+  }
+  if (hasPerformingArtsDirection(profile)) {
+    return "Your profile shows performance, expression, and creative discipline.";
+  }
+  if (hasArtDirection(profile) || hasWritingDirection(profile)) {
+    return "Your profile shows creative work and a pull to share ideas.";
+  }
+  if (hasSportsDirection(profile)) {
+    return "Your profile shows team commitment, discipline, and how you show up for others.";
+  }
+  if (hasStemDirection(profile)) {
+    return "Your profile points toward STEM, problem-solving, and building things.";
+  }
+  return "You have a few interests starting to show up.";
 }
 
 function directionSpecificProofText(profile: StudentProfile) {

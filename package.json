@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:atlas": "node --import tsx scripts/test-atlas-engine.ts"
+    "test:atlas": "node --import tsx scripts/test-atlas-engine.ts",
+    "test:differentiation": "node --import tsx scripts/test-atlas-differentiation.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

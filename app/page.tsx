@@ -866,11 +866,11 @@ function HeroRecommendationCard({
           Atlas Recommendation
         </div>
         <h1 className="max-w-[15.5rem] text-[clamp(2.1rem,10.5vw,2.85rem)] font-black leading-[0.9] tracking-normal text-[#20233a] [overflow-wrap:anywhere]">
-          {recommendation?.title ?? "Gain Research Experience"}
+          {recommendation?.title ?? "Build Something You Can Point To"}
         </h1>
         <p className="mt-4 max-w-[13rem] text-[1.02rem] font-extrabold leading-snug text-[#444253]">
           {recommendation?.whyNow ??
-            "This is the move that could create the biggest positive impact on your future right now."}
+            "You already have a foundation to build from. The next move is turning your interests into something real you can show."}
         </p>
         <button
           className="mt-5 inline-flex h-[52px] items-center gap-2 rounded-[1.15rem] bg-[#20233a] px-6 text-[1rem] font-black text-white shadow-soft"
@@ -888,7 +888,7 @@ function RecommendationMetadata({ analysis }: { analysis: AtlasAnalysisResponse 
   return (
     <section className="rounded-[1.25rem] bg-white/55 px-4 py-3">
       <p className="text-[0.76rem] font-black leading-snug text-slate-400">
-        Atlas detected:
+        Tester note:
       </p>
       <p className="text-sm font-black leading-snug text-[#20233a]">
         {analysis.archetype.title}
@@ -978,7 +978,11 @@ function WhyCard({
 }: {
   why?: AtlasAnalysisResponse["whyAtlasPickedIt"];
 }) {
-  const strengths = why?.strengths ?? ["Grades", "Competitions", "Community"];
+  const strengths = why?.strengths ?? [
+    "Your grades show that you can handle challenging work.",
+    "Your activities show interests outside the classroom.",
+    "Your service shows that you care about people around you.",
+  ];
 
   return (
     <section className="rounded-[1.75rem] bg-white p-5 shadow-soft">
@@ -991,36 +995,36 @@ function WhyCard({
             {why?.title ?? "Why this move?"}
           </h2>
           <p className="mt-1 text-sm font-extrabold text-slate-400">
-            {why?.subtitle ?? "Atlas noticed the pattern."}
+            {why?.subtitle ?? "Here’s the pattern I see."}
           </p>
         </div>
       </div>
       <div className="space-y-4">
         <div className="rounded-[1.35rem] bg-[#f3fffb] p-4">
           <p className="mb-3 text-sm font-black text-[#087d66]">
-            {why?.strengthLabel ?? "You’re already strong in:"}
+            {why?.strengthLabel ?? "What you already have:"}
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
             {strengths.map((item) => (
-              <span
+              <div
                 key={item}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700"
+                className="flex items-start gap-2 rounded-[1rem] bg-white px-3 py-2 text-sm font-black leading-snug text-slate-700"
               >
-                <Check size={15} strokeWidth={3} className="text-[#087d66]" />
+                <Check size={15} strokeWidth={3} className="mt-0.5 shrink-0 text-[#087d66]" />
                 {item}
-              </span>
+              </div>
             ))}
           </div>
         </div>
         <div className="rounded-[1.35rem] bg-[#fff4c8] p-4">
           <p className="mb-2 text-sm font-black text-[#8a6820]">
-            {why?.missingProofLabel ?? "The missing proof:"}
+            {why?.missingProofLabel ?? "What would strengthen your profile:"}
           </p>
           <PillRow
             icon={Sparkles}
             text={
               why?.missingProof ??
-              "Original work, research, or a project you can proudly explain."
+              "What would help most now is building one real project, experience, or role that shows what you care about."
             }
             tone="warm"
           />
