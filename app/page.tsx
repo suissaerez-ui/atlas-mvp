@@ -335,6 +335,8 @@ function HomeScreen() {
           student: currentProfile ? undefined : selectedStudent,
           profile: currentProfile ?? undefined,
           recommendationCategory: analysis.nextBestMove.category,
+          constraint: analysis.constraint,
+          developmentNeedId: analysis.developmentNeed.id,
           location: currentProfile?.location,
           interests: currentProfile?.interests,
         }),
@@ -1139,7 +1141,7 @@ function ResourceList({ resources }: { resources: AtlasResourceCard[] }) {
           <Sparkles size={21} fill="currentColor" />
         </div>
         <div>
-          <h2 className="text-2xl font-black leading-none">Resources to try</h2>
+          <h2 className="text-2xl font-black leading-none">Opportunities to explore</h2>
           <p className="mt-1 text-sm font-extrabold text-slate-400">
             Pick one and keep moving.
           </p>

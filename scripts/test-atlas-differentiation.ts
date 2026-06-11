@@ -21,12 +21,112 @@ const gamingBuilderBelowBs = withAcademicStrength(requiredProfile("Gaming Builde
   gpa: 2.8,
   notes: ["Below B's", "Academic foundation needs support"],
 });
+const futureDiplomat: AtlasTestProfile = {
+  name: "Future Diplomat",
+  grade: 11,
+  location: "New Jersey",
+  futureDirection: "Diplomat / international relations / foreign service",
+  energy: "Debate, current events, global issues, languages",
+  intent: "Build stronger college applications",
+  interests: ["diplomacy", "international relations", "global affairs", "debate"],
+  goals: ["Build stronger college applications", "Find summer opportunities"],
+  notes:
+    "Interested in becoming a diplomat and learning how countries solve problems. Enjoys debate, current events, languages, and global issues.",
+  academics: {
+    gpa: 3.8,
+    trend: "flat",
+    notes: ["A/B student", "Strong humanities and language performance"],
+  },
+  courseRigor: {
+    level: "rigorous",
+    courses: ["AP Government", "World History", "Spanish Honors"],
+  },
+  activities: [
+    { name: "Debate club", category: "debate", years: 2 },
+    { name: "Language club", category: "club", years: 1 },
+  ],
+  leadership: [],
+  service: {
+    hours: 25,
+    focusAreas: ["community events"],
+    notes: ["Community volunteering"],
+  },
+  awards: [{ title: "Debate speaker recognition", level: "school" }],
+  projects: [],
+  essays: [],
+  documents: [],
+  expectedRecommendationNote:
+    "global affairs / diplomacy / Model UN / civic opportunities, NOT direction testing",
+};
+const futureDoctorWithHealthcareEvidence: AtlasTestProfile = {
+  name: "Future Doctor With Healthcare Evidence",
+  grade: 11,
+  location: "New Jersey",
+  futureDirection: "Doctor",
+  energy: "Reading, helping people, sports",
+  intent: "Find direction",
+  interests: ["medicine", "healthcare", "service", "biology"],
+  goals: ["Find a direction", "Build stronger college applications"],
+  notes:
+    "Loves reading and wants to help people. Interested in becoming a doctor and learning whether medicine fits.",
+  academics: {
+    gpa: 3.9,
+    trend: "up",
+    notes: ["Mostly A's", "Strong science performance"],
+  },
+  courseRigor: {
+    level: "rigorous",
+    courses: ["AP Biology", "Honors Math", "Speech and Debate"],
+  },
+  activities: [
+    { name: "Lacrosse", category: "sports", years: 2 },
+    { name: "DECA", category: "business", years: 1 },
+    { name: "Debate", category: "debate", years: 2 },
+  ],
+  leadership: [{ role: "Officer", organization: "BBYO" }],
+  service: {
+    hours: 120,
+    focusAreas: ["EMT volunteering", "Friendship Circle"],
+    notes: ["EMT volunteer", "Friendship Circle volunteer", "Helping people through service"],
+  },
+  awards: [],
+  projects: [
+    {
+      title: "Science project",
+      type: "class_project",
+      status: "complete",
+      notes: "Completed a science class project.",
+    },
+    {
+      title: "Writing portfolio",
+      type: "creative_portfolio",
+      status: "in_progress",
+      notes: "Writing portfolio in progress.",
+    },
+    {
+      title: "Small business idea",
+      type: "original_project",
+      status: "idea",
+      notes: "Early small business idea.",
+    },
+  ],
+  essays: [],
+  documents: [],
+  expectedRecommendationNote:
+    "healthcare exposure should beat civic advocacy when future goal, coursework, and service all point to medicine",
+};
 
 const cases: DifferentiationCase[] = [
   {
     profile: requiredProfile("Debate Law"),
     expectedNeed: "civic engagement / advocacy / policy proof",
     positive: ["civic", "policy", "debate", "public service", "law", "advocacy"],
+  },
+  {
+    profile: futureDiplomat,
+    expectedNeed: "global affairs / diplomacy / public service exposure",
+    positive: ["global", "diplomacy", "diplomat", "model un", "international", "foreign"],
+    negative: ["direction_testing"],
   },
   {
     profile: requiredProfile("Creative Performer"),
@@ -38,6 +138,12 @@ const cases: DifferentiationCase[] = [
     profile: requiredProfile("Future Doctor"),
     expectedNeed: "healthcare exposure / shadowing / service / public health",
     positive: ["health", "healthcare", "shadow", "public health", "service", "research"],
+  },
+  {
+    profile: futureDoctorWithHealthcareEvidence,
+    expectedNeed: "healthcare exposure reinforced by future goal, coursework, service, and narrative",
+    positive: ["health", "healthcare", "doctor", "medicine", "emt", "shadow", "patient"],
+    negative: ["take your civic interest beyond the classroom", "civic_advocacy_proof"],
   },
   {
     profile: futureDoctorBelowBs,
@@ -218,6 +324,8 @@ function runCase(item: DifferentiationCase): CaseResult {
     recommendationCategory: analysis.nextBestMove.category,
     location: item.profile.location,
     interests: item.profile.interests,
+    constraint: analysis.constraint,
+    developmentNeedId: analysis.developmentNeed.id,
   });
   const resourceTitles = resources.map((resource) => resource.title);
   const explanationBlock = [
@@ -234,6 +342,7 @@ function runCase(item: DifferentiationCase): CaseResult {
     analysis.nextBestMove.whyNow,
     ...actionPlanTitles,
     ...analysis.resourceCategories,
+    ...resourceTitles,
   ]
     .join(" ")
     .toLowerCase();
@@ -252,6 +361,22 @@ function runCase(item: DifferentiationCase): CaseResult {
 
   if (item.profile.name === "Future Doctor" && !/(health|shadow|public health|service|research)/.test(combinedText)) {
     reviewReasons.push("Healthcare student got a generic project instead of exposure/shadowing/service/research.");
+  }
+
+  if (item.profile.name === "Future Doctor With Healthcare Evidence" && analysis.developmentNeed.id !== "healthcare_exposure") {
+    reviewReasons.push("Reinforced future doctor profile did not resolve to healthcare_exposure.");
+  }
+
+  if (item.profile.name === "Future Doctor With Healthcare Evidence" && /civic|take your civic interest beyond the classroom/.test(combinedText)) {
+    reviewReasons.push("Debate or leadership redirected a strongly reinforced healthcare profile into civic advocacy.");
+  }
+
+  if (item.profile.name === "Future Diplomat" && analysis.developmentNeed.id === "direction_testing") {
+    reviewReasons.push("Specific diplomat aspiration was incorrectly treated as direction testing.");
+  }
+
+  if (item.profile.name === "Future Diplomat" && !/(model un|global affairs|diplomacy|international relations|foreign policy|junior state)/.test(combinedText)) {
+    reviewReasons.push("Future diplomat resources did not include global affairs or civic opportunities.");
   }
 
   if (item.profile.name === "Future Doctor Below Bs" && analysis.constraint !== "academic_foundation") {
@@ -286,6 +411,8 @@ function runCase(item: DifferentiationCase): CaseResult {
     reviewReasons.push("Gaming builder with Below B's lost the technical builder development need.");
   }
 
+  reviewReasons.push(...resourceReviewReasons(item.profile.name, analysis.constraint, analysis.developmentNeed.id, resourceTitles));
+
   return {
     caseName: item.profile.name,
     futureDirection: item.profile.futureDirection ?? "Unknown",
@@ -305,6 +432,62 @@ function runCase(item: DifferentiationCase): CaseResult {
     isGenericProjectTitle: isGenericProjectTitle(analysis.nextBestMove.title),
     reviewReasons,
   };
+}
+
+function resourceReviewReasons(
+  name: string,
+  constraint: string,
+  developmentNeedId: string,
+  resourceTitles: string[],
+) {
+  const reasons: string[] = [];
+  const text = resourceTitles.join(" ").toLowerCase();
+
+  if (constraint === "academic_foundation" && !/(teacher|khan|tutor|tutoring|grade)/.test(text)) {
+    reasons.push(`${name} has academic foundation constraint but resources are not academic support oriented.`);
+  }
+
+  if (constraint === "academic_foundation") {
+    return reasons;
+  }
+
+  if (developmentNeedId === "healthcare_exposure" && !/(hospital|hosa|red cross|ems|health|rutgers)/.test(text)) {
+    reasons.push(`${name} needs healthcare exposure but resources are not healthcare related.`);
+  }
+
+  if (developmentNeedId === "technical_builder_portfolio" && !/(congressional app|hack club|first robotics|codeday|github|itch)/.test(text)) {
+    reasons.push(`${name} needs technical builder resources but did not get coding/building opportunities.`);
+  }
+
+  if (developmentNeedId === "civic_advocacy_proof" && !/(model un|junior state|ymca youth|speech|debate|town council|school board)/.test(text)) {
+    reasons.push(`${name} needs civic advocacy resources but did not get civic opportunities.`);
+  }
+
+  if (developmentNeedId === "global_affairs_exposure" && !/(model un|junior state|council on foreign relations|foreign policy|world affairs|international relations)/.test(text)) {
+    reasons.push(`${name} needs global affairs resources but did not get diplomacy/global opportunities.`);
+  }
+
+  if (developmentNeedId === "creative_ownership" && !/(youngarts|scholastic|showcase|arts magazine|literary magazine|portfolio)/.test(text)) {
+    reasons.push(`${name} needs creative ownership resources but did not get arts/showcase opportunities.`);
+  }
+
+  if (developmentNeedId === "venture_validation" && !/(deca|fbla|diamond challenge|nfte|customer discovery|pitch|venture)/.test(text)) {
+    reasons.push(`${name} needs venture validation resources but did not get business/customer opportunities.`);
+  }
+
+  if (developmentNeedId === "service_impact" && !/(peer tutoring|big brothers|food pantry|service|volunteermatch|mentoring)/.test(text)) {
+    reasons.push(`${name} needs service impact resources but did not get service/mentoring opportunities.`);
+  }
+
+  if (developmentNeedId === "direction_testing" && !/(career conversation|informational interview|job shadow|club sampler|summer pre-college|volunteer sampler|teacher|counselor)/.test(text)) {
+    reasons.push(`${name} needs direction testing resources but did not get real exploration experiences.`);
+  }
+
+  if (developmentNeedId === "direction_testing" && /journal/.test(text)) {
+    reasons.push(`${name} direction testing resources leaned too heavily on journaling.`);
+  }
+
+  return reasons;
 }
 
 function summarizeDevelopmentalNeed(whyNow: string) {
@@ -330,6 +513,9 @@ function findActionSimilarityReviews(results: CaseResult[]) {
     for (let j = i + 1; j < results.length; j += 1) {
       const a = results[i];
       const b = results[j];
+      if (a.developmentNeedTitle === "Healthcare exposure" && b.developmentNeedTitle === "Healthcare exposure") {
+        continue;
+      }
       const similarity = jaccard(actionTokens(a), actionTokens(b));
 
       if (similarity >= 0.45) {

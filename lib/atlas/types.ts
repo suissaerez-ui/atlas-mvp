@@ -33,6 +33,7 @@ export type PrimaryConstraint =
 
 export type DevelopmentNeedId =
   | "civic_advocacy_proof"
+  | "global_affairs_exposure"
   | "creative_ownership"
   | "healthcare_exposure"
   | "technical_builder_portfolio"

@@ -515,6 +515,8 @@ function developmentNeedExplanation(
         : "Engineering grows through making, testing, and improving. Your profile already points toward building, but the next step is a prototype or technical artifact that shows your thinking in motion. A focused build makes your interest easier to understand and gives you material for teachers, programs, and future applications.";
     case "civic_advocacy_proof":
       return "Law and public service become stronger when your opinions meet real people and real problems. You already have the communication side forming; now the opportunity is to choose an issue, listen carefully, and turn your point of view into useful action. That kind of civic work shows judgment, initiative, and a reason behind your interest.";
+    case "global_affairs_exposure":
+      return "Diplomacy is not just being interested in the world; it is practicing how to understand issues, compare perspectives, and communicate clearly. A global issue briefing, Model UN experience, or conversation with someone in public affairs gives you a low-risk way to test that path. It also shows that your interest reaches beyond headlines into real analysis and action.";
     case "creative_ownership":
       return hasPerformingArtsDirection(profile)
         ? "Performance is already part of your life, but ownership is different from participation. The next step is showing your choices: what you created, how you practiced, what changed, and what you want an audience to feel. A portfolio or showcase makes your creative growth visible instead of leaving it hidden in rehearsals."
@@ -554,6 +556,9 @@ function academicConstraintExplanation(
 }
 
 function identitySignalSentence(profile: StudentProfile) {
+  if (hasGlobalAffairsDirection(profile)) {
+    return "Your profile points toward diplomacy, global issues, and public service beyond your local community.";
+  }
   if (hasMedicineDirection(profile)) {
     return "Your profile is starting to point toward health, biology, and helping people.";
   }
@@ -660,6 +665,28 @@ function identifyDevelopmentNeed(profile: StudentProfile, rubric: AtlasRubricAre
     ]);
   }
 
+  if (hasStrongHealthcareAlignment(profile)) {
+    return developmentNeed("healthcare_exposure", [
+      profile.futureDirection ?? "Health direction",
+      ...healthcareSupportEvidence(profile),
+    ]);
+  }
+
+  if (hasHealthcareAspiration(profile)) {
+    return developmentNeed("healthcare_exposure", [
+      profile.futureDirection ?? "Health direction",
+      ...healthcareSupportEvidence(profile),
+    ]);
+  }
+
+  if (hasGlobalAffairsDirection(profile)) {
+    return developmentNeed("global_affairs_exposure", [
+      profile.futureDirection ?? "Global affairs direction",
+      profile.energy ?? "",
+      ...profile.interests,
+    ]);
+  }
+
   if (hasLawPolicyDirection(profile)) {
     return developmentNeed("civic_advocacy_proof", profile.interests);
   }
@@ -722,6 +749,14 @@ function developmentNeed(id: DevelopmentNeed["id"], evidence: string[]): Develop
         "Prove your interest through advocacy, civic work, debate leadership, policy writing, public service, or local issue work.",
       preferredRecommendationCategories: ["build_original_project", "strengthen_leadership"],
       actionPlanStyle: "civic_issue_to_public_solution",
+    },
+    global_affairs_exposure: {
+      id: "global_affairs_exposure",
+      title: "Global affairs exposure",
+      description:
+        "Test diplomacy, international relations, foreign service, global issues, negotiation, and public speaking through real experiences.",
+      preferredRecommendationCategories: ["build_original_project", "strengthen_leadership", "find_program"],
+      actionPlanStyle: "global_issue_briefing_and_club",
     },
     creative_ownership: {
       id: "creative_ownership",
@@ -891,6 +926,7 @@ function developmentNeedBoost(
   const baseBoost = developmentNeed.preferredRecommendationCategories.includes(category) ? 4 : 0;
   const specificBoosts: Partial<Record<DevelopmentNeed["id"], Partial<Record<RecommendationCategory, number>>>> = {
     civic_advocacy_proof: { build_original_project: 2, strengthen_leadership: 1 },
+    global_affairs_exposure: { build_original_project: 2, strengthen_leadership: 1, find_program: 1 },
     creative_ownership: { build_original_project: 2 },
     healthcare_exposure: { gain_research_experience: 2, build_original_project: 1.5 },
     technical_builder_portfolio: { build_original_project: 3, pursue_competition: 1 },
@@ -1299,8 +1335,56 @@ function hasStemDirection(profile: StudentProfile): boolean {
 
 function hasMedicineDirection(profile: StudentProfile): boolean {
   const directionText = directionTextFor(profile);
-  return ["medicine", "medical", "doctor", "health", "nursing", "public health", "biology", "hospital", "patient"].some((term) =>
+  return ["medicine", "medical", "doctor", "physician", "healthcare", "health", "nursing", "public health", "biology", "hospital", "patient", "emt"].some((term) =>
     directionText.includes(term),
+  );
+}
+
+function hasStrongHealthcareAlignment(profile: StudentProfile): boolean {
+  return hasHealthcareAspiration(profile) && healthcareSupportEvidence(profile).length >= 2;
+}
+
+function hasHealthcareAspiration(profile: StudentProfile): boolean {
+  const text = `${profile.futureDirection ?? ""} ${profile.goals.join(" ")}`.toLowerCase();
+  return ["doctor", "medicine", "healthcare", "nursing", "public health", "physician", "emt", "hospital"].some((term) =>
+    text.includes(term),
+  );
+}
+
+function healthcareSupportEvidence(profile: StudentProfile): string[] {
+  const evidence: string[] = [];
+  const courseText = profile.courseRigor.courses.join(" ").toLowerCase();
+  const serviceText = [
+    ...profile.service.focusAreas,
+    ...profile.service.notes,
+    ...profile.activities.map((activity) => activity.name),
+  ].join(" ").toLowerCase();
+  const narrativeText = `${profile.notes ?? ""} ${profile.energy ?? ""}`.toLowerCase();
+
+  if (["biology", "ap bio", "ap biology", "anatomy", "health", "science"].some((term) => courseText.includes(term))) {
+    evidence.push("Coursework points toward healthcare or science");
+  }
+
+  if (["emt", "hospital", "ambulance", "first aid", "red cross", "caregiving", "friendship circle", "helping people"].some((term) => serviceText.includes(term))) {
+    evidence.push("Service experience points toward helping or healthcare");
+  }
+
+  if (["help people", "helping people", "patients", "medicine", "health", "healthcare"].some((term) => narrativeText.includes(term))) {
+    evidence.push("Narrative points toward helping people through healthcare");
+  }
+
+  return evidence;
+}
+
+function hasEmtOrHealthServiceEvidence(profile: StudentProfile): boolean {
+  const serviceText = [
+    ...profile.service.focusAreas,
+    ...profile.service.notes,
+    ...profile.activities.map((activity) => activity.name),
+  ].join(" ").toLowerCase();
+
+  return ["emt", "hospital", "ambulance", "first aid", "red cross", "health", "patient"].some((term) =>
+    serviceText.includes(term),
   );
 }
 
@@ -1336,6 +1420,20 @@ function hasPerformingArtsDirection(profile: StudentProfile): boolean {
 function hasLawPolicyDirection(profile: StudentProfile): boolean {
   const directionText = directionTextFor(profile);
   return ["law", "policy", "debate", "government", "public service", "civic"].some((term) => directionText.includes(term));
+}
+
+function hasGlobalAffairsDirection(profile: StudentProfile): boolean {
+  const directionText = directionTextFor(profile);
+  return [
+    "diplomat",
+    "diplomacy",
+    "international relations",
+    "foreign service",
+    "global affairs",
+    "global issues",
+    "world affairs",
+    "international affairs",
+  ].some((term) => directionText.includes(term));
 }
 
 function hasSportsDirection(profile: StudentProfile): boolean {
@@ -1400,6 +1498,7 @@ function isUncertainDirection(profile: StudentProfile): boolean {
     directionText.includes(term),
   );
   const hasSpecificDirection =
+    hasGlobalAffairsDirection(profile) ||
     hasMedicineDirection(profile) ||
     hasLawPolicyDirection(profile) ||
     hasBusinessDirection(profile) ||
@@ -1467,7 +1566,9 @@ function directionTextFor(profile: StudentProfile) {
     ...profile.goals,
     profile.notes ?? "",
     ...profile.activities.map((activity) => `${activity.name} ${activity.category}`),
+    ...profile.courseRigor.courses,
     ...profile.service.focusAreas,
+    ...profile.service.notes,
   ]
     .join(" ")
     .toLowerCase();
@@ -1476,6 +1577,9 @@ function directionTextFor(profile: StudentProfile) {
 function differentiationArchetypeTitle(profile: StudentProfile): string {
   if (isUncertainDirection(profile)) {
     return "Explore One Clear Direction";
+  }
+  if (hasGlobalAffairsDirection(profile)) {
+    return "Explore Global Affairs Beyond The Classroom";
   }
   if (hasServiceEducationDirection(profile)) {
     return "Turn Helping Others Into Real Impact";
@@ -1520,6 +1624,9 @@ function researchRecommendationTitle(profile: StudentProfile): string {
 function originalProjectRecommendationTitle(profile: StudentProfile, developmentNeed?: DevelopmentNeed): string {
   if (developmentNeed?.id === "civic_advocacy_proof") {
     return "Take Your Civic Interest Beyond The Classroom";
+  }
+  if (developmentNeed?.id === "global_affairs_exposure") {
+    return "Explore Global Affairs Beyond The Classroom";
   }
   if (developmentNeed?.id === "creative_ownership") {
     return hasPerformingArtsDirection(profile) ? "Create A Performance Portfolio" : "Build a Portfolio That Shows Your Voice";
@@ -1677,6 +1784,15 @@ function developmentActionPlan(
     ];
   }
 
+  if (developmentNeed.id === "global_affairs_exposure") {
+    return [
+      { title: "Join or try Model UN, debate, civic club, or an international affairs club", type: "activity", priority: 1, impact: "high", label: "Start here" },
+      { title: "Pick one global issue and follow it for two weeks", type: "project", priority: 2, impact: "high", label: "Go deeper" },
+      { title: "Write or present a short briefing: what is happening, why it matters, and what different sides believe", type: "document", priority: 3, impact: "medium", label: "Brief it" },
+      { title: "Talk to a teacher, local official, professor, or professional connected to government or global affairs", type: "activity", priority: 4, impact: "medium", label: "Learn from someone" },
+    ];
+  }
+
   if (developmentNeed.id === "creative_ownership") {
     return hasPerformingArtsDirection(profile)
       ? [
@@ -1692,11 +1808,17 @@ function developmentActionPlan(
   }
 
   if (developmentNeed.id === "healthcare_exposure") {
-    return [
-      { title: "Find one health exposure, shadowing, or hospital volunteer option", type: "activity", priority: 1, impact: "high", label: "Start here" },
-      { title: "Choose one public health question you care about", type: "project", priority: 2, impact: "high", label: "Go deeper" },
-      { title: "Document what you learned and what surprised you", type: "document", priority: 3, impact: "medium", label: "Reflect" },
-    ];
+    return hasEmtOrHealthServiceEvidence(profile)
+      ? [
+          { title: "Deepen EMT or health-related volunteer experience", type: "activity", priority: 1, impact: "high", label: "Start here" },
+          { title: "Shadow or interview a healthcare professional", type: "activity", priority: 2, impact: "high", label: "Get closer" },
+          { title: "Choose one public health or patient-care question to explore", type: "project", priority: 3, impact: "medium", label: "Go deeper" },
+        ]
+      : [
+          { title: "Find one health exposure, shadowing, or hospital volunteer option", type: "activity", priority: 1, impact: "high", label: "Start here" },
+          { title: "Choose one public health question you care about", type: "project", priority: 2, impact: "high", label: "Go deeper" },
+          { title: "Document what you learned and what surprised you", type: "document", priority: 3, impact: "medium", label: "Reflect" },
+        ];
   }
 
   if (developmentNeed.id === "technical_builder_portfolio") {
@@ -1746,6 +1868,15 @@ function originalProjectActionPlan(profile: StudentProfile): RecommendationActio
       { title: "Try one short interest project", type: "project", priority: 1, impact: "high", label: "Start here" },
       { title: "Talk to someone in a field that seems interesting", type: "activity", priority: 2, impact: "medium", label: "Explore" },
       { title: "Join or try one focused activity", type: "activity", priority: 3, impact: "medium", label: "Test it" },
+    ];
+  }
+
+  if (hasGlobalAffairsDirection(profile)) {
+    return [
+      { title: "Join or try Model UN, debate, civic club, or an international affairs club", type: "activity", priority: 1, impact: "high", label: "Start here" },
+      { title: "Pick one global issue and follow it for two weeks", type: "project", priority: 2, impact: "high", label: "Go deeper" },
+      { title: "Write or present a short briefing on what is happening and why it matters", type: "document", priority: 3, impact: "medium", label: "Brief it" },
+      { title: "Talk to a teacher, professor, local official, or global affairs professional", type: "activity", priority: 4, impact: "medium", label: "Learn from someone" },
     ];
   }
 
@@ -1984,6 +2115,8 @@ function developmentNeedWhyNow(profile: StudentProfile, developmentNeed: Develop
         : "Engineering is easier to believe when there is a build people can inspect. A small prototype or technical project can show your problem-solving in motion.";
     case "civic_advocacy_proof":
       return "Law and policy become more meaningful when you move from having opinions to taking action on an issue. A civic project gives your interest a real-world shape.";
+    case "global_affairs_exposure":
+      return "Diplomacy starts with understanding real issues from more than one side. A global affairs experience can help you test negotiation, research, public speaking, and international problem-solving.";
     case "creative_ownership":
       return hasPerformingArtsDirection(profile)
         ? "Your performance work can say more when it shows your choices, growth, and point of view. A portfolio or showcase helps others see the creator behind the activity."
@@ -2152,6 +2285,9 @@ function progressVerb(profile: StudentProfile) {
 
 function directionLabel(direction: string) {
   const lower = direction.toLowerCase();
+  if (["diplomat", "diplomacy", "international relations", "foreign service", "global affairs", "world affairs"].some((term) => lower.includes(term))) {
+    return "Global Affairs / Diplomacy";
+  }
   if (["medicine", "medical", "health", "biology", "public health"].some((term) => lower.includes(term))) {
     return "Medicine / Health";
   }
@@ -2186,6 +2322,7 @@ function directionLabel(direction: string) {
 }
 
 function inferredDirectionLabel(profile: StudentProfile) {
+  if (hasGlobalAffairsDirection(profile)) return "Global Affairs / Diplomacy";
   if (hasMedicineDirection(profile)) return "Medicine / Health";
   if (hasLawPolicyDirection(profile)) return "Law / Policy";
   if (hasServiceEducationDirection(profile)) return "Education / Service";
@@ -2223,6 +2360,9 @@ function interpretedDirectionInsight(profile: StudentProfile) {
 }
 
 function secondPersonDirectionSignal(profile: StudentProfile) {
+  if (hasGlobalAffairsDirection(profile)) {
+    return "Your profile points toward diplomacy, global issues, and public service beyond your local community.";
+  }
   if (hasMedicineDirection(profile)) {
     return "Your profile points toward health, biology, or helping people through medicine.";
   }
@@ -2257,6 +2397,9 @@ function directionSpecificProofText(profile: StudentProfile) {
   if (isUncertainDirection(profile)) {
     return "one small experience that helps test a direction without forcing a career path";
   }
+  if (hasGlobalAffairsDirection(profile)) {
+    return "a global issue briefing, Model UN experience, civic discussion, or international affairs activity that shows this interest in action";
+  }
   if (hasServiceEducationDirection(profile)) {
     return "a mentoring, tutoring, or community initiative with clear evidence of who was helped";
   }
@@ -2287,6 +2430,9 @@ function directionSpecificProofText(profile: StudentProfile) {
 function directionSpecificActionText(profile: StudentProfile) {
   if (isUncertainDirection(profile)) {
     return "small exploration experiences";
+  }
+  if (hasGlobalAffairsDirection(profile)) {
+    return "global affairs, diplomacy, Model UN, or international issue work";
   }
   if (hasServiceEducationDirection(profile)) {
     return "a mentoring or tutoring initiative with visible impact";
